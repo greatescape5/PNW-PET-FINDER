@@ -1,0 +1,2760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PNW Pet Finder — Find, adopt, and rehome pets across the Pacific Northwest. Browse dogs, puppies, cats and more listed in Washington, Idaho, and Oregon.">
+  <meta property="og:title" content="PNW Pet Finder — Pacific Northwest Pet Directory">
+  <meta property="og:description" content="Find, adopt, and rehome pets across Washington, Idaho, and Oregon.">
+  <title>PNW Pet Finder — Find & Rehome Pets in the Pacific Northwest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #1a2a3a;
+      --gold: #c8a96e;
+      --gold-light: #e8c98e;
+      --gold-pale: #f5ede0;
+      --gray-bg: #f0eeeb;
+      --gray-light: #e8e4de;
+      --white: #ffffff;
+      --text: #1a2a3a;
+      --text-mid: #4a5568;
+      --text-muted: #7a7060;
+      --error: #c53030;
+      --success: #276749;
+      --radius: 8px;
+      --shadow-sm: 0 1px 4px rgba(26,42,58,0.08);
+      --shadow: 0 4px 16px rgba(26,42,58,0.10);
+      --shadow-lg: 0 12px 40px rgba(26,42,58,0.14);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--gray-bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-light);
+      padding: 0 32px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .nav-logo-pnw {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: -0.01em;
+    }
+
+    .nav-logo-rest {
+      font-family: 'Inter', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-link {
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-mid);
+      cursor: pointer;
+      border: none;
+      background: none;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+      text-decoration: none;
+    }
+
+    .nav-link:hover { color: var(--navy); background: var(--gray-bg); }
+
+    .nav-cta {
+      padding: 9px 20px;
+      background: transparent;
+      border: 1.5px solid var(--navy);
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-left: 8px;
+    }
+
+    .nav-cta:hover { background: var(--navy); color: white; }
+
+    .nav-icon-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-mid);
+      transition: background 0.15s;
+    }
+
+    .nav-icon-btn:hover { background: var(--gray-bg); }
+
+    /* ── PAGES ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── HERO SPLIT LAYOUT ── */
+    .hero-split {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 4px;
+      padding: 4px;
+      background: var(--gray-bg);
+      min-height: 520px;
+    }
+
+    .hero-main {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-height: 520px;
+      background: var(--navy);
+    }
+
+    .hero-bg-img {
+      position: absolute;
+      inset: 0;
+      background: url('https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1200&q=80') center/cover no-repeat;
+      filter: brightness(0.55);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      padding: 52px 48px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .hero-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(28px, 3.5vw, 48px);
+      font-weight: 700;
+      color: var(--gold-light);
+      line-height: 1.15;
+      margin-bottom: 14px;
+      max-width: 480px;
+    }
+
+    .hero-sub {
+      font-size: 15px;
+      color: rgba(255,255,255,0.78);
+      margin-bottom: 28px;
+      max-width: 380px;
+    }
+
+    .hero-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,0.7);
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: fit-content;
+      letter-spacing: 0.02em;
+    }
+
+    .hero-btn:hover { background: rgba(255,255,255,0.15); border-color: white; }
+
+    /* ── HERO GRID TILES ── */
+    .hero-tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 4px;
+    }
+
+    .hero-tile {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius);
+      cursor: pointer;
+      min-height: 254px;
+    }
+
+    .hero-tile-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: brightness(0.5);
+      transition: transform 0.4s, filter 0.3s;
+    }
+
+    .hero-tile:hover .hero-tile-bg { transform: scale(1.04); filter: brightness(0.4); }
+
+    .hero-tile-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;
+      padding: 20px;
+    }
+
+    .hero-tile-btn {
+      padding: 8px 20px;
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,0.8);
+      border-radius: 5px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      letter-spacing: 0.03em;
+    }
+
+    .hero-tile:hover .hero-tile-btn { background: rgba(255,255,255,0.15); }
+
+    /* ── SEARCH BAR ── */
+    .search-wrap {
+      background: white;
+      border-bottom: 1px solid var(--gray-light);
+      padding: 16px 32px;
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .search-field {
+      position: relative;
+      flex: 2;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 12px 10px 38px;
+      border: 1.5px solid var(--gray-light);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: var(--gray-bg);
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .search-input:focus { border-color: var(--gold); background: white; }
+    select.search-input { padding-left: 12px; cursor: pointer; }
+
+    .search-btn {
+      padding: 10px 24px;
+      background: var(--navy);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .search-btn:hover { background: #243545; }
+
+    /* ── SECTIONS ── */
+    .section { padding: 48px 32px; max-width: 1200px; margin: 0 auto; }
+
+    .section-hd {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+
+    .see-all {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transition: color 0.15s;
+    }
+
+    .see-all:hover { color: var(--navy); }
+
+    /* ── LISTING CARDS ── */
+    .listings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 18px;
+    }
+
+    .listing-card {
+      background: white;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--gray-light);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .listing-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.listing-card.is-featured { border-color: var(--gold); }
+    .listing-card.is-expired { opacity: 0.72; }
+    .listing-card.is-expired .card-img img { filter: grayscale(20%); }
+
+
+    .card-img {
+      position: relative;
+      height: 200px;
+      overflow: hidden;
+      background: var(--gray-light);
+    }
+
+    .card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s; }
+    .listing-card:hover .card-img img { transform: scale(1.04); }
+
+    .card-img-placeholder {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px; color: var(--text-muted);
+    }
+
+    .feat-badge {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: var(--gold);
+      color: var(--navy);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .card-body { padding: 14px 16px 16px; }
+
+    .card-type {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    .card-name {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .card-loc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-price {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+
+    .card-age {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--gray-bg);
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .hiw {
+      background: var(--navy);
+      padding: 56px 32px;
+    }
+
+    .hiw-inner { max-width: 960px; margin: 0 auto; }
+
+    .hiw h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--gold-light);
+      margin-bottom: 6px;
+    }
+
+    .hiw-sub { color: rgba(255,255,255,0.55); font-size: 15px; margin-bottom: 40px; }
+
+    .hiw-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 680px) { .hiw-steps { grid-template-columns: 1fr; } }
+
+    .hiw-step {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+    }
+
+    .hiw-num {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 800;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .hiw-step h3 { color: white; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .hiw-step p { color: rgba(255,255,255,0.55); font-size: 13px; line-height: 1.6; }
+
+    /* ── PRICING ── */
+    .pricing-wrap { background: white; padding: 56px 32px; }
+    .pricing-inner { max-width: 960px; margin: 0 auto; }
+
+    .pricing-inner h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 30px; font-weight: 700; color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .pricing-inner > p { color: var(--text-muted); margin-bottom: 36px; }
+
+    .pricing-cards {
+      display: flex; gap: 16px; flex-wrap: wrap;
+    }
+
+    .pc {
+      flex: 1; min-width: 230px;
+      border: 1.5px solid var(--gray-light);
+      border-radius: var(--radius);
+      padding: 28px 22px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .pc:hover { border-color: var(--gold); box-shadow: var(--shadow); }
+    .pc.pc-pop { border-color: var(--navy); }
+    .pc.pc-feat { border-color: var(--gold); background: #fffdf8; }
+
+    .pc-badge {
+      display: inline-block;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 20px;
+      margin-bottom: 12px;
+    }
+
+    .pc-badge-pop { background: var(--navy); color: white; }
+    .pc-badge-feat { background: var(--gold); color: var(--navy); }
+
+    .pc-name { font-weight: 700; font-size: 15px; color: var(--navy); margin-bottom: 8px; }
+    .pc-price { font-size: 36px; font-weight: 800; color: var(--navy); line-height: 1; }
+    .pc-price span { font-size: 14px; font-weight: 400; color: var(--text-muted); }
+    .pc-dur { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; margin-top: 2px; }
+
+    .pc-features { list-style: none; margin-bottom: 22px; }
+    .pc-features li {
+      font-size: 13px; color: var(--text-mid);
+      padding: 5px 0;
+      border-bottom: 1px solid var(--gray-light);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pc-features li:last-child { border: none; }
+    .ck { color: var(--success); font-weight: 700; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 22px;
+      border-radius: 6px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none;
+      transition: all 0.15s;
+      font-family: 'Inter', sans-serif;
+      text-decoration: none;
+    }
+
+    .btn-navy { background: var(--navy); color: white; }
+    .btn-navy:hover { background: #243545; }
+
+    .btn-outline-navy { background: transparent; color: var(--navy); border: 1.5px solid var(--navy); }
+    .btn-outline-navy:hover { background: var(--navy); color: white; }
+
+    .btn-gold { background: var(--gold); color: var(--navy); }
+    .btn-gold:hover { background: var(--gold-light); }
+
+    .btn-outline-gold { background: transparent; color: var(--navy); border: 1.5px solid var(--gold); }
+    .btn-outline-gold:hover { background: var(--gold-pale); }
+
+    .btn-ghost { background: transparent; color: var(--text-muted); border: 1.5px solid var(--gray-light); }
+    .btn-ghost:hover { border-color: var(--text-muted); color: var(--navy); }
+
+    .btn-sm { padding: 7px 14px; font-size: 13px; }
+    .btn-full { width: 100%; justify-content: center; }
+
+    /* ── MODALS ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(26,42,58,0.45);
+      z-index: 300;
+      display: none; align-items: center; justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: white;
+      border-radius: 12px;
+      padding: 36px;
+      width: 100%; max-width: 460px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-hd {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .modal-title { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+    .modal-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+
+    .close-x {
+      background: none; border: none; font-size: 20px;
+      color: var(--text-muted); cursor: pointer; line-height: 1;
+      padding: 2px; border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .close-x:hover { color: var(--navy); }
+
+    /* ── FORM ELEMENTS ── */
+    .fg { margin-bottom: 14px; }
+
+    .fl {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--text-mid); margin-bottom: 5px;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+
+    .fi {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid var(--gray-light);
+      border-radius: 6px;
+      font-size: 14px; font-family: 'Inter', sans-serif;
+      color: var(--text); background: var(--gray-bg);
+      outline: none; transition: border-color 0.15s, background 0.15s;
+    }
+
+    .fi:focus { border-color: var(--gold); background: white; }
+    textarea.fi { resize: vertical; min-height: 96px; }
+
+    .f-row { display: flex; gap: 12px; }
+    .f-row .fg { flex: 1; }
+
+    .f-divider {
+      text-align: center; position: relative;
+      color: var(--text-muted); font-size: 12px; margin: 14px 0;
+    }
+
+    .f-divider::before {
+      content: ''; position: absolute;
+      top: 50%; left: 0; right: 0;
+      height: 1px; background: var(--gray-light);
+    }
+
+    .f-divider span { background: white; padding: 0 10px; position: relative; }
+
+    .f-link { color: var(--navy); cursor: pointer; font-weight: 600; font-size: 14px; }
+    .f-link:hover { text-decoration: underline; }
+
+    .f-foot { text-align: center; margin-top: 14px; font-size: 14px; color: var(--text-muted); }
+
+    /* ── ALERTS ── */
+    .alert { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+    .alert-err { background: #fff5f5; color: var(--error); border: 1px solid #fed7d7; }
+    .alert-ok { background: #f0fff4; color: var(--success); border: 1px solid #9ae6b4; }
+    .alert-info { background: #fffdf0; color: #744210; border: 1px solid var(--gold-light); }
+
+    /* ── LISTING FORM PAGE ── */
+    .lf-page { max-width: 700px; margin: 0 auto; padding: 36px 24px 60px; }
+
+    .lf-page h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 28px; font-weight: 700; color: var(--navy); margin-bottom: 6px;
+    }
+
+    .lf-page > p { color: var(--text-muted); margin-bottom: 28px; font-size: 14px; }
+
+    .lf-section {
+      background: white; border-radius: var(--radius);
+      border: 1px solid var(--gray-light);
+      padding: 24px; margin-bottom: 16px;
+    }
+
+    .lf-section h2 {
+      font-size: 13px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 18px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--gray-light);
+    }
+
+    /* ── PHOTO UPLOAD ── */
+    .photo-drop {
+      border: 2px dashed var(--gray-light);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .photo-drop:hover, .photo-drop.drag { border-color: var(--gold); background: var(--gold-pale); }
+
+    .photo-drop-icon { font-size: 32px; margin-bottom: 8px; }
+    .photo-drop-text { font-size: 14px; color: var(--text-muted); }
+    .photo-drop-text strong { color: var(--navy); }
+
+    .photo-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px; margin-top: 14px;
+    }
+
+    .photo-thumb-wrap { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; }
+    .photo-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
+    .photo-rm {
+      position: absolute; top: 3px; right: 3px;
+      background: rgba(26,42,58,0.7); color: white;
+      border: none; border-radius: 50%;
+      width: 20px; height: 20px; font-size: 12px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── PLAN SELECTOR ── */
+    .plans { display: flex; flex-direction: column; gap: 10px; }
+
+    .plan-opt {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px;
+      border: 1.5px solid var(--gray-light);
+      border-radius: var(--radius);
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    }
+
+    .plan-opt:hover { border-color: var(--gold); }
+    .plan-opt.sel { border-color: var(--navy); background: #f8faff; }
+    .plan-opt.sel-feat { border-color: var(--gold); background: var(--gold-pale); }
+
+    .plan-radio {
+      width: 18px; height: 18px;
+      border: 2px solid var(--gray-light);
+      border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .plan-opt.sel .plan-radio { border-color: var(--navy); background: var(--navy); }
+    .plan-opt.sel-feat .plan-radio { border-color: var(--gold); background: var(--gold); }
+
+    .plan-radio::after {
+      content: ''; width: 7px; height: 7px;
+      border-radius: 50%; background: white; display: none;
+    }
+
+    .plan-opt.sel .plan-radio::after,
+    .plan-opt.sel-feat .plan-radio::after { display: block; }
+
+    .plan-info { flex: 1; }
+    .plan-name-text { font-weight: 700; font-size: 14px; color: var(--navy); }
+    .plan-desc-text { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .plan-price-text { font-size: 20px; font-weight: 800; color: var(--navy); }
+
+    /* ── LISTING DETAIL ── */
+    .detail-wrap { max-width: 1000px; margin: 0 auto; padding: 28px 24px 60px; }
+
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--text-muted);
+      cursor: pointer; border: none; background: none; padding: 0;
+      margin-bottom: 20px; transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--navy); }
+
+    .detail-grid {
+      display: grid; grid-template-columns: 1fr 300px; gap: 24px;
+    }
+
+    @media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
+
+    .detail-main-img {
+      width: 100%; aspect-ratio: 4/3;
+      object-fit: cover; border-radius: var(--radius);
+      margin-bottom: 10px;
+    }
+
+    .detail-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+
+    .detail-thumb {
+      width: 70px; height: 70px; flex-shrink: 0;
+      object-fit: cover; border-radius: 5px;
+      cursor: pointer; border: 2px solid transparent;
+      transition: border-color 0.15s;
+    }
+
+    .detail-thumb.on { border-color: var(--gold); }
+
+    .detail-tags {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;
+    }
+
+    .dtag {
+      background: var(--gray-bg);
+      border: 1px solid var(--gray-light);
+      padding: 3px 11px; border-radius: 20px;
+      font-size: 12px; color: var(--text-muted);
+    }
+
+    .detail-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 28px; font-weight: 700; color: var(--navy); margin-bottom: 10px;
+    }
+
+    .price-pill {
+      display: inline-block;
+      background: var(--gold-pale);
+      border: 1px solid var(--gold);
+      color: var(--navy);
+      font-size: 20px; font-weight: 800;
+      padding: 5px 16px; border-radius: 6px;
+      margin-bottom: 18px;
+    }
+
+    .detail-desc { font-size: 15px; color: var(--text-mid); line-height: 1.75; }
+
+    .seller-box {
+      background: white;
+      border: 1px solid var(--gray-light);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+      position: sticky; top: 84px;
+    }
+
+    .seller-box h3 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 4px;
+    }
+
+    .seller-box > p { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+
+    .seller-row {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; color: var(--text); padding: 8px 0;
+      border-bottom: 1px solid var(--gray-bg);
+    }
+    .seller-row:last-of-type { border: none; }
+
+    .seller-icon {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--gray-bg);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 14px;
+    }
+
+    .share-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--gray-bg); }
+
+    .share-b {
+      flex: 1; min-width: 70px;
+      padding: 7px; border-radius: 5px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--gray-light);
+      background: white; color: var(--text-mid);
+      transition: all 0.15s;
+    }
+
+    .share-b:hover { background: var(--gray-bg); color: var(--navy); }
+
+    /* ── DASHBOARD ── */
+    .dash-wrap { max-width: 960px; margin: 0 auto; padding: 36px 24px 60px; }
+
+    .dash-header { margin-bottom: 28px; }
+    .dash-header h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 26px; font-weight: 700; color: var(--navy); margin-bottom: 4px;
+    }
+    .dash-header p { font-size: 14px; color: var(--text-muted); }
+
+    .dash-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-bottom: 32px; }
+
+    .stat-box {
+      background: white; border-radius: var(--radius);
+      border: 1px solid var(--gray-light);
+      padding: 18px 20px; box-shadow: var(--shadow-sm);
+    }
+
+    .stat-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+    .stat-val { font-size: 30px; font-weight: 800; color: var(--navy); }
+    .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .dash-section { margin-bottom: 28px; }
+
+    .dash-section-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--gray-light);
+    }
+
+    .dash-section-hd h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 18px; font-weight: 700; color: var(--navy);
+    }
+
+    .dash-section-hd span { font-size: 12px; color: var(--text-muted); }
+
+    /* Listing management cards */
+    .listing-mgmt-grid { display: flex; flex-direction: column; gap: 12px; }
+
+    .listing-mgmt-card {
+      background: white; border-radius: var(--radius);
+      border: 1px solid var(--gray-light);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+
+    .listing-mgmt-card:hover { box-shadow: var(--shadow); }
+    .listing-mgmt-card.is-active { border-left: 3px solid var(--success); }
+    .listing-mgmt-card.is-featured-card { border-left: 3px solid var(--gold); }
+    .listing-mgmt-card.is-expired-card { border-left: 3px solid var(--gray-light); opacity: 0.8; }
+
+    .lmc-main {
+      display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px;
+    }
+
+    .lmc-img {
+      width: 72px; height: 72px; object-fit: cover;
+      border-radius: 6px; flex-shrink: 0; background: var(--gray-light);
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+    }
+
+    .lmc-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+
+    .lmc-info { flex: 1; min-width: 0; }
+
+    .lmc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+
+    .lmc-title { font-weight: 700; font-size: 15px; color: var(--navy); }
+
+    .sbadge {
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0;
+    }
+
+    .sb-active { background: #f0fff4; color: var(--success); }
+    .sb-feat { background: var(--gold-pale); color: #744210; }
+    .sb-exp { background: var(--gray-bg); color: var(--text-muted); }
+    .sb-sold { background: #f0f0f0; color: var(--text-muted); }
+
+    .lmc-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+
+    .lmc-progress {
+      height: 4px; background: var(--gray-light);
+      border-radius: 2px; overflow: hidden; margin-bottom: 6px; max-width: 240px;
+    }
+
+    .lmc-progress-bar { height: 100%; background: var(--success); border-radius: 2px; transition: width 0.3s; }
+    .lmc-progress-bar.feat { background: var(--gold); }
+    .lmc-progress-bar.exp { background: var(--gray-light); width: 100% !important; }
+
+    .lmc-days { font-size: 11px; color: var(--text-muted); }
+
+    .lmc-actions {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 18px; background: var(--gray-bg);
+      border-top: 1px solid var(--gray-light); flex-wrap: wrap;
+    }
+
+    .lmc-actions .btn { font-size: 12px; padding: 6px 14px; }
+
+    /* edit panel */
+    .lmc-edit-panel {
+      border-top: 1px solid var(--gray-light);
+      padding: 20px 18px;
+      display: none;
+      background: white;
+    }
+
+    .lmc-edit-panel.open { display: block; }
+
+    .lmc-edit-panel h3 { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .edit-grid { grid-template-columns: 1fr; } }
+
+    .edit-grid .fg { margin-bottom: 0; }
+    .edit-grid .fg.full { grid-column: 1 / -1; }
+
+    .save-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+    /* ── EDIT PAGE ── */
+    .edit-page { max-width: 680px; margin: 0 auto; padding: 36px 24px 60px; }
+
+    .edit-page h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 26px; font-weight: 700; color: var(--navy); margin-bottom: 6px;
+    }
+
+    .edit-page > p { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+
+    /* ── SUCCESS PAGE ── */
+    .success-page { max-width: 540px; margin: 80px auto; padding: 0 24px; text-align: center; }
+
+    .success-icon { font-size: 60px; margin-bottom: 18px; }
+
+    .success-page h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 28px; font-weight: 700; color: var(--navy); margin-bottom: 10px;
+    }
+
+    .success-page > p { color: var(--text-muted); margin-bottom: 28px; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--navy); color: white;
+      padding: 12px 18px; border-radius: 8px;
+      font-size: 14px; font-weight: 500;
+      box-shadow: var(--shadow-lg); z-index: 999;
+      transform: translateY(60px); opacity: 0;
+      transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .toast.on { transform: translateY(0); opacity: 1; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--navy); color: rgba(255,255,255,0.5);
+      padding: 40px 32px; text-align: center;
+    }
+
+    .footer-brand {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 18px; color: var(--gold-light); margin-bottom: 14px;
+    }
+
+    .footer-links { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .footer-links a { color: rgba(255,255,255,0.5); font-size: 13px; text-decoration: none; cursor: pointer; }
+    .footer-links a:hover { color: rgba(255,255,255,0.85); }
+    footer p { font-size: 12px; }
+
+    /* ── EMPTY STATE ── */
+    .empty { text-align: center; padding: 56px 24px; }
+    .empty-icon { font-size: 44px; margin-bottom: 14px; }
+    .empty h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 18px; color: var(--navy); margin-bottom: 6px; }
+    .empty p { font-size: 14px; color: var(--text-muted); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 780px) {
+      .hero-split { grid-template-columns: 1fr; min-height: unset; }
+      .hero-tiles { grid-template-rows: repeat(4,1fr); }
+      .hero-tile { min-height: 160px; }
+      nav { padding: 0 16px; }
+      .nav-link { display: none; }
+      .section { padding: 36px 16px; }
+      .f-row { flex-direction: column; }
+    }
+
+    /* ── NAV DROPDOWN ── */
+    .nav-dropdown { position: relative; }
+    .nav-dropdown-trigger { display: flex; align-items: center; gap: 4px; }
+    .nav-dropdown-menu {
+      position: absolute; top: calc(100% + 8px); left: 0;
+      background: white; border: 1px solid var(--gray-light);
+      border-radius: 8px; box-shadow: var(--shadow-lg);
+      min-width: 160px; z-index: 300; overflow: hidden;
+      display: none;
+    }
+    .nav-dropdown-menu.open { display: block; }
+    .dropdown-item {
+      display: block; width: 100%; text-align: left;
+      padding: 10px 16px; font-size: 14px; font-weight: 500;
+      color: var(--text-mid); background: none; border: none;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .dropdown-item:hover { background: var(--gray-bg); color: var(--navy); }
+
+    /* ── BLOG PAGE ── */
+    .blog-page { max-width: 900px; margin: 0 auto; padding: 40px 24px 60px; }
+
+    .blog-hero {
+      background: var(--navy); border-radius: var(--radius);
+      padding: 36px 32px; margin-bottom: 32px; position: relative; overflow: hidden;
+    }
+
+    .blog-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(200,169,110,0.15) 0%, transparent 60%);
+    }
+
+    .blog-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 10px;
+    }
+
+    .blog-hero h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 32px; font-weight: 700; color: white; margin-bottom: 8px;
+    }
+
+    .blog-hero p { color: rgba(255,255,255,0.6); font-size: 15px; }
+
+    .blog-tabs {
+      display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+
+    .blog-tab {
+      padding: 8px 20px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: 1.5px solid var(--gray-light);
+      background: white; color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .blog-tab.active { background: var(--navy); color: white; border-color: var(--navy); }
+    .blog-tab:hover:not(.active) { border-color: var(--navy); color: var(--navy); }
+
+    .blog-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .blog-card {
+      background: white; border-radius: var(--radius);
+      border: 1px solid var(--gray-light); overflow: hidden;
+      cursor: pointer; transition: box-shadow 0.2s, transform 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .blog-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+
+    .blog-card-img {
+      height: 160px; overflow: hidden; background: var(--gray-light);
+    }
+
+    .blog-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s; }
+    .blog-card:hover .blog-card-img img { transform: scale(1.04); }
+
+    .blog-card-body { padding: 16px; }
+
+    .blog-card-tag {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 6px;
+    }
+
+    .blog-card-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 16px; font-weight: 700; color: var(--navy);
+      margin-bottom: 6px; line-height: 1.3;
+    }
+
+    .blog-card-excerpt { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .blog-card-read { font-size: 12px; color: var(--gold); font-weight: 600; margin-top: 10px; }
+
+    /* ── BLOG ARTICLE PAGE ── */
+    .article-page { max-width: 740px; margin: 0 auto; padding: 36px 24px 60px; }
+
+    .article-tag {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 12px;
+    }
+
+    .article-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(26px, 4vw, 38px); font-weight: 700;
+      color: var(--navy); line-height: 1.2; margin-bottom: 14px;
+    }
+
+    .article-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+
+    .article-hero-img {
+      width: 100%; aspect-ratio: 16/9; object-fit: cover;
+      border-radius: var(--radius); margin-bottom: 28px;
+    }
+
+    .article-body h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 22px; font-weight: 700; color: var(--navy);
+      margin: 32px 0 12px;
+    }
+
+    .article-body p { font-size: 15px; color: var(--text-mid); line-height: 1.8; margin-bottom: 16px; }
+
+    .article-body ul { margin: 0 0 16px 20px; }
+    .article-body ul li { font-size: 15px; color: var(--text-mid); line-height: 1.8; margin-bottom: 6px; }
+
+    .article-cta {
+      background: var(--gold-pale); border: 1px solid var(--gold);
+      border-radius: var(--radius); padding: 24px; margin: 32px 0;
+      text-align: center;
+    }
+
+    .article-cta p { font-size: 15px; color: var(--navy); font-weight: 600; margin-bottom: 12px; }
+
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-logo" onclick="showPage('home')">
+    <span class="nav-logo-pnw">PNW</span>
+    <span class="nav-logo-rest">PetFinder.com</span>
+  </div>
+  <div class="nav-links">
+    <button class="nav-link" onclick="showPage('listings')">All Listings</button>
+    <button class="nav-link" onclick="showPage('post-listing')">List Your Pet</button>
+    <div class="nav-dropdown" id="petCareDropdown">
+      <button class="nav-link nav-dropdown-trigger" onclick="toggleDropdown()">Pet Care ▾</button>
+      <div class="nav-dropdown-menu" id="dropdownMenu">
+        <button class="dropdown-item" onclick="showBlog('dogs');toggleDropdown()">🐕 Dogs</button>
+        <button class="dropdown-item" onclick="showBlog('cats');toggleDropdown()">🐈 Cats</button>
+      </div>
+    </div>
+    <button class="nav-link" id="dashNavLink" style="display:none" onclick="showPage('dashboard')">My Listings</button>
+    <button class="nav-icon-btn" title="Cart">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    </button>
+    <button class="nav-link" id="loginNavLink" onclick="openModal('loginModal')">Log In</button>
+    <button class="nav-link" id="logoutNavLink" style="display:none" onclick="logout()">Log Out</button>
+    <button class="nav-cta" onclick="showPage('post-listing')">Post Your Ad</button>
+  </div>
+</nav>
+
+<!-- ── HOME ── -->
+<div id="page-home" class="page active">
+
+  <!-- HERO SPLIT -->
+  <div class="hero-split">
+    <div class="hero-main">
+      <div class="hero-bg-img"></div>
+      <div class="hero-content">
+        <h1 class="hero-title">Find Your New Best Friend and Adopt a Pet with PNW Pet Finder</h1>
+        <p class="hero-sub">Browse a variety of pets available for adoption or sale. Find your new best friend today!</p>
+        <button class="hero-btn" onclick="showPage('listings')">View Pets →</button>
+      </div>
+    </div>
+    <div class="hero-tiles">
+      <div class="hero-tile" onclick="showPage('listings')">
+        <div class="hero-tile-bg" style="background-image:url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&q=75')"></div>
+        <div class="hero-tile-content"><button class="hero-tile-btn">Shop</button></div>
+      </div>
+      <div class="hero-tile" onclick="showPage('post-listing')">
+        <div class="hero-tile-bg" style="background-image:url('https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=600&q=75')"></div>
+        <div class="hero-tile-content"><button class="hero-tile-btn">Post A Listing</button></div>
+      </div>
+      <div class="hero-tile" onclick="showPage('home')">
+        <div class="hero-tile-bg" style="background-image:url('https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=600&q=75')"></div>
+        <div class="hero-tile-content"><button class="hero-tile-btn">About Us</button></div>
+      </div>
+      <div class="hero-tile" onclick="showPage('home')">
+        <div class="hero-tile-bg" style="background-image:url('https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600&q=75')"></div>
+        <div class="hero-tile-content"><button class="hero-tile-btn">Contact Us</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="search-wrap">
+    <div class="search-bar">
+      <div class="search-field" style="flex:2">
+        <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="homeSearch" placeholder="Search breed, location..." oninput="filterListings()">
+      </div>
+      <select class="search-input" id="homeSpecies" onchange="filterListings()" style="min-width:130px">
+        <option value="">All Animals</option>
+        <option value="Dog">Dogs</option>
+        <option value="Cat">Cats</option>
+        <option value="Other">Other</option>
+      </select>
+      <button class="search-btn" onclick="showPage('listings')">Search</button>
+    </div>
+  </div>
+
+  <!-- FEATURED PETS -->
+  <div class="section">
+    <div class="section-hd">
+      <h2 class="section-title">Featured Pets Available on Our Site</h2>
+      <button class="see-all" onclick="showPage('listings')">See All Listings →</button>
+    </div>
+    <div class="listings-grid" id="homeGrid"></div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="hiw">
+    <div class="hiw-inner">
+      <h2>How It Works</h2>
+      <p class="hiw-sub">List your pet in minutes. Go live the same day.</p>
+      <div class="hiw-steps">
+        <div class="hiw-step">
+          <div class="hiw-num">1</div>
+          <h3>Fill out the Form</h3>
+          <p>Share your pet's info, photos, choose your listing length and pay securely on our site.</p>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-num">2</div>
+          <h3>Go Live in 48 Hours or Less</h3>
+          <p>Your listing is automatically formatted and added to our website the moment payment confirms.</p>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-num">3</div>
+          <h3>Visitors Contact You Directly</h3>
+          <p>Reach buyers across Washington, Oregon, Idaho and beyond — finding the right home for your pet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRICING -->
+  <div class="pricing-wrap">
+    <div class="pricing-inner">
+      <h2>Simple, Affordable Pricing</h2>
+      <p>Half the price of your local classifieds — and no reposting every week.</p>
+      <div class="pricing-cards">
+        <div class="pc">
+          <div class="pc-name">Standard</div>
+          <div class="pc-price">$6.99<span>/listing</span></div>
+          <div class="pc-dur">2 week listing</div>
+          <ul class="pc-features">
+            <li><span class="ck">✓</span> Listed for 14 days</li>
+            <li><span class="ck">✓</span> Up to 10 photos</li>
+            <li><span class="ck">✓</span> Edit anytime</li>
+            <li><span class="ck">✓</span> Relist reminder</li>
+          </ul>
+          <button class="btn btn-outline-navy btn-full" onclick="showPage('post-listing')">Get started</button>
+        </div>
+        <div class="pc pc-pop">
+          <div class="pc-badge pc-badge-pop">Most Popular</div>
+          <div class="pc-name">Extended</div>
+          <div class="pc-price">$11.99<span>/listing</span></div>
+          <div class="pc-dur">4 week listing</div>
+          <ul class="pc-features">
+            <li><span class="ck">✓</span> Listed for 28 days</li>
+            <li><span class="ck">✓</span> Up to 10 photos</li>
+            <li><span class="ck">✓</span> Edit anytime</li>
+            <li><span class="ck">✓</span> Relist reminder</li>
+          </ul>
+          <button class="btn btn-navy btn-full" onclick="showPage('post-listing')">Get started</button>
+        </div>
+        <div class="pc pc-feat">
+          <div class="pc-badge pc-badge-feat">⭐ Featured</div>
+          <div class="pc-name">Featured Listing</div>
+          <div class="pc-price">$19.99<span>/listing</span></div>
+          <div class="pc-dur">Front page · 2 weeks</div>
+          <ul class="pc-features">
+            <li><span class="ck">✓</span> Front page placement</li>
+            <li><span class="ck">✓</span> Featured badge</li>
+            <li><span class="ck">✓</span> Priority in search</li>
+            <li><span class="ck">✓</span> Up to 10 photos</li>
+          </ul>
+          <button class="btn btn-gold btn-full" onclick="showPage('post-listing')">Get started</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── ALL LISTINGS ── -->
+<div id="page-listings" class="page">
+  <div style="background:white;padding:16px 32px;border-bottom:1px solid var(--gray-light)">
+    <div class="search-bar" style="max-width:1000px;margin:0 auto">
+      <div class="search-field" style="flex:2">
+        <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="allSearch" placeholder="Search breed, name, location..." oninput="filterListings()">
+      </div>
+      <select class="search-input" id="allSpecies" onchange="filterListings()" style="min-width:130px">
+        <option value="">All Animals</option>
+        <option value="Dog">Dogs</option>
+        <option value="Cat">Cats</option>
+        <option value="Other">Other</option>
+      </select>
+      <select class="search-input" id="allState" onchange="filterListings()" style="min-width:140px">
+        <option value="">All Locations</option>
+        <option value="Washington">Washington</option>
+        <option value="Idaho">Idaho</option>
+        <option value="Oregon">Oregon</option>
+      </select>
+      <select class="search-input" id="allStatus" onchange="filterListings()" style="min-width:130px">
+        <option value="active">Active Listings</option>
+        <option value="expired">Past Listings</option>
+        <option value="all">All Listings</option>
+      </select>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-hd">
+      <h2 class="section-title">Pets Available on Our Site</h2>
+      <span id="listCount" style="font-size:13px;color:var(--text-muted)"></span>
+    </div>
+    <div class="listings-grid" id="allGrid"></div>
+    <div class="empty" id="noResults" style="display:none">
+      <div class="empty-icon">🐾</div>
+      <h3>No listings found</h3>
+      <p>Try adjusting your search filters</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── LISTING DETAIL ── -->
+<div id="page-detail" class="page">
+  <div class="detail-wrap">
+    <button class="back-link" onclick="showPage('listings')">← Back to listings</button>
+    <div class="detail-grid">
+      <div>
+        <img id="dMainImg" class="detail-main-img" src="" alt="">
+        <div class="detail-thumbs" id="dThumbs"></div>
+        <div class="detail-tags" id="dTags" style="margin-top:14px"></div>
+        <h1 class="detail-title" id="dTitle"></h1>
+        <div class="price-pill" id="dPrice"></div>
+        <p class="detail-desc" id="dDesc"></p>
+      </div>
+      <div>
+        <div class="seller-box">
+          <h3>Seller Information</h3>
+          <p>Contact the seller for more info now!</p>
+          <div id="dSeller"></div>
+          <div class="share-row">
+            <button class="share-b" onclick="copyLink()">🔗 Copy Link</button>
+            <button class="share-b" onclick="showToast('Share on Facebook!')">📘 Facebook</button>
+            <button class="share-b" onclick="showToast('Share on X!')">✕ X</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── POST LISTING ── -->
+<div id="page-post-listing" class="page">
+  <div class="lf-page">
+    <button class="back-link" onclick="showPage('home')">← Back</button>
+    <h1>List Your Pet</h1>
+    <p>Fill out the form, upload photos, choose your plan and pay. Your listing goes live automatically.</p>
+    <div id="lfAlert"></div>
+
+    <div class="lf-section">
+      <h2>Pet Details</h2>
+      <div class="f-row">
+        <div class="fg"><label class="fl">Pet Name *</label><input class="fi" id="pName" placeholder="e.g. Buddy"></div>
+        <div class="fg"><label class="fl">Species *</label>
+          <select class="fi" id="pSpecies">
+            <option value="Dog">Dog</option>
+            <option value="Cat">Cat</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="fg"><label class="fl">Breed *</label><input class="fi" id="pBreed" placeholder="e.g. German Shepherd"></div>
+        <div class="fg"><label class="fl">Age</label><input class="fi" id="pAge" placeholder="e.g. 8 weeks"></div>
+      </div>
+      <div class="f-row">
+        <div class="fg"><label class="fl">Price ($)</label><input class="fi" id="pPrice" type="number" placeholder="0 for free"></div>
+        <div class="fg"><label class="fl">Location *</label><input class="fi" id="pLocation" placeholder="e.g. Spokane, WA"></div>
+      </div>
+      <div class="fg"><label class="fl">Description *</label><textarea class="fi" id="pDesc" placeholder="Tell potential buyers about your pet…"></textarea></div>
+    </div>
+
+    <div class="lf-section">
+      <h2>Photos</h2>
+      <div class="photo-drop" id="photoDrop" onclick="document.getElementById('photoIn').click()" ondragover="dOver(event)" ondrop="dDrop(event)">
+        <div class="photo-drop-icon">📸</div>
+        <div class="photo-drop-text"><strong>Click to upload</strong> or drag & drop · Up to 10 photos · JPG, PNG</div>
+      </div>
+      <input type="file" id="photoIn" multiple accept="image/*" style="display:none" onchange="photoSel(event)">
+      <div class="photo-grid" id="photoGrid"></div>
+    </div>
+
+    <div class="lf-section">
+      <h2>Contact Info</h2>
+      <div class="f-row">
+        <div class="fg"><label class="fl">Your Name *</label><input class="fi" id="pSeller" placeholder="Full name"></div>
+        <div class="fg"><label class="fl">Phone</label><input class="fi" id="pPhone" placeholder="(xxx) xxx-xxxx"></div>
+      </div>
+      <div class="fg"><label class="fl">Email *</label><input class="fi" id="pEmail" type="email" placeholder="your@email.com"></div>
+    </div>
+
+    <div class="lf-section">
+      <h2>Choose Your Plan</h2>
+      <div class="plans">
+        <div class="plan-opt" id="po-standard" onclick="selPlan('standard')">
+          <div class="plan-radio"></div>
+          <div class="plan-info">
+            <div class="plan-name-text">Standard — 2 Weeks</div>
+            <div class="plan-desc-text">14 days · Up to 10 photos · Edit anytime</div>
+          </div>
+          <div class="plan-price-text">$6.99</div>
+        </div>
+        <div class="plan-opt" id="po-extended" onclick="selPlan('extended')">
+          <div class="plan-radio"></div>
+          <div class="plan-info">
+            <div class="plan-name-text">Extended — 4 Weeks <span style="background:var(--navy);color:white;font-size:10px;padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:700">POPULAR</span></div>
+            <div class="plan-desc-text">28 days · Up to 10 photos · Edit anytime</div>
+          </div>
+          <div class="plan-price-text">$11.99</div>
+        </div>
+        <div class="plan-opt" id="po-featured" onclick="selPlan('featured')">
+          <div class="plan-radio"></div>
+          <div class="plan-info">
+            <div class="plan-name-text">Featured — Front Page ⭐</div>
+            <div class="plan-desc-text">14 days · Front page placement · Featured badge · Priority in search</div>
+          </div>
+          <div class="plan-price-text">$19.99</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-navy btn-full" onclick="submitListing()" style="font-size:15px;padding:15px">Continue to Payment →</button>
+    <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:10px">🔒 Secure checkout powered by Stripe</p>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="page-dashboard" class="page">
+  <div class="dash-wrap">
+    <div class="dash-header">
+      <h1 id="dashHi">My Listings</h1>
+      <p id="dashSub">Manage your active listings, edit details, and track your posts.</p>
+    </div>
+    <div class="dash-stats" id="dashStats"></div>
+    <div class="dash-section" id="activeSection">
+      <div class="dash-section-hd">
+        <h2>Active Listings</h2>
+        <button class="btn btn-navy btn-sm" onclick="showPage('post-listing')">+ New Listing</button>
+      </div>
+      <div class="listing-mgmt-grid" id="activeListings"></div>
+      <div class="empty" id="noActive" style="display:none;padding:32px">
+        <div class="empty-icon">🐾</div>
+        <h3>No active listings</h3>
+        <p>Your paid listings will appear here once they go live.</p>
+        <button class="btn btn-navy" style="margin-top:14px" onclick="showPage('post-listing')">+ Post a listing</button>
+      </div>
+    </div>
+    <div class="dash-section" id="expiredSection">
+      <div class="dash-section-hd">
+        <h2>Past & Expired Listings</h2>
+        <span id="expiredCount"></span>
+      </div>
+      <div class="listing-mgmt-grid" id="expiredListings"></div>
+      <div class="empty" id="noExpired" style="display:none;padding:24px">
+        <p style="color:var(--text-muted);font-size:14px">No past listings yet.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── EDIT LISTING PAGE (kept for direct URL access) ── -->
+<div id="page-edit" class="page" style="display:none"></div>
+
+<!-- ── SUCCESS ── -->
+<div id="page-success" class="page">
+  <div class="success-page">
+    <div class="success-icon">🎉</div>
+    <h1>Your listing is live!</h1>
+    <p>Payment confirmed. Your pet is now visible to buyers across the Pacific Northwest.</p>
+    <div class="alert alert-ok" style="text-align:left;margin-bottom:24px">
+      <strong>What's next:</strong><br>
+      📧 Check your email for your listing confirmation<br>
+      👀 Buyers can now find and contact you directly<br>
+      ⏰ You'll receive a reminder 3 days before expiry
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-navy" onclick="showPage('dashboard')">View my listings</button>
+      <button class="btn btn-ghost" onclick="showPage('listings')">Browse all listings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOGIN MODAL ── -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Welcome back</div>
+      <button class="close-x" onclick="closeModal('loginModal')">×</button>
+    </div>
+    <div class="modal-sub">Log in to manage your listings</div>
+    <div id="loginAlert"></div>
+    <div class="fg"><label class="fl">Email</label><input class="fi" id="liEmail" type="email" placeholder="your@email.com"></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" id="liPass" type="password" placeholder="••••••••"></div>
+    <button class="btn btn-navy btn-full" onclick="login()" style="margin-top:6px">Log in</button>
+    <div class="f-divider"><span>or</span></div>
+    <div class="f-foot">Don't have an account? <a class="f-link" onclick="switchModal('loginModal','signupModal')">Sign up free</a></div>
+  </div>
+</div>
+
+<!-- ── SIGNUP MODAL ── -->
+<div class="modal-overlay" id="signupModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Create your account</div>
+      <button class="close-x" onclick="closeModal('signupModal')">×</button>
+    </div>
+    <div class="modal-sub">Free to sign up — pay only when you list</div>
+    <div id="signupAlert"></div>
+    <div class="f-row">
+      <div class="fg"><label class="fl">First Name</label><input class="fi" id="suFirst" placeholder="First"></div>
+      <div class="fg"><label class="fl">Last Name</label><input class="fi" id="suLast" placeholder="Last"></div>
+    </div>
+    <div class="fg"><label class="fl">Email</label><input class="fi" id="suEmail" type="email" placeholder="your@email.com"></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" id="suPass" type="password" placeholder="Min. 8 characters"></div>
+    <button class="btn btn-navy btn-full" onclick="signup()" style="margin-top:6px">Create account</button>
+    <div class="f-foot" style="margin-top:12px">Already have an account? <a class="f-link" onclick="switchModal('signupModal','loginModal')">Log in</a></div>
+  </div>
+</div>
+
+<!-- ── PAYMENT MODAL ── -->
+<div class="modal-overlay" id="payModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Review & Pay</div>
+      <button class="close-x" onclick="closeModal('payModal')">×</button>
+    </div>
+    <div class="modal-sub" id="paySummary"></div>
+
+    <div style="background:var(--gray-bg);border-radius:var(--radius);padding:18px;margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:14px;color:var(--text-mid)" id="payPlanName"></span>
+        <span style="font-size:20px;font-weight:800;color:var(--navy)" id="payAmt"></span>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)" id="payPlanDesc"></div>
+    </div>
+
+    <div class="alert alert-info" style="margin-bottom:18px">
+      🔒 You will be redirected to <strong>Stripe</strong> — the most trusted payment platform in the world. Your card details are never stored on our site.
+    </div>
+
+    <div style="background:#f6fbf4;border:1px solid #9ae6b4;border-radius:8px;padding:14px;margin-bottom:18px;font-size:13px;color:#276749">
+      ✓ Your listing saves automatically<br>
+      ✓ Goes live the moment payment confirms<br>
+      ✓ You can edit it anytime from your dashboard
+    </div>
+
+    <button class="btn btn-navy btn-full" id="payBtn" onclick="processPayment()" style="font-size:15px;padding:14px">
+      Continue to Stripe →
+    </button>
+    <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:10px">
+      🔒 Powered by Stripe · Cancel anytime before paying
+    </p>
+  </div>
+</div>
+
+<!-- ── BLOG PAGE ── -->
+<div id="page-blog" class="page">
+  <div class="blog-page">
+    <div class="blog-hero">
+      <div class="blog-eyebrow">Pet Care</div>
+      <h1 id="blogHeroTitle">Dog Care Guides</h1>
+      <p id="blogHeroSub">Everything you need to know about caring for your dog in the Pacific Northwest.</p>
+    </div>
+
+    <div class="blog-tabs">
+      <button class="blog-tab active" id="tab-dogs" onclick="switchBlogTab('dogs')">🐕 Dogs</button>
+      <button class="blog-tab" id="tab-cats" onclick="switchBlogTab('cats')">🐈 Cats</button>
+    </div>
+
+    <div class="blog-grid" id="blogGrid"></div>
+  </div>
+</div>
+
+<!-- ── BLOG ARTICLE PAGE ── -->
+<div id="page-article" class="page">
+  <div class="article-page">
+    <button class="back-link" onclick="showPage('blog')">← Back to Pet Care</button>
+    <div class="article-tag" id="articleTag"></div>
+    <h1 class="article-title" id="articleTitle"></h1>
+    <div class="article-meta" id="articleMeta"></div>
+    <img class="article-hero-img" id="articleImg" src="" alt="">
+    <div class="article-body" id="articleBody"></div>
+    <div class="article-cta">
+      <p>🐾 Looking for your next pet in the Pacific Northwest?</p>
+      <button class="btn btn-navy" onclick="showPage('listings')">Browse All Listings on PNWPetFinder.com</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+
+<footer>
+  <div class="footer-brand">PNW Pet Finder</div>
+  <div class="footer-links">
+    <a onclick="showPage('home')">Home</a>
+    <a onclick="showPage('listings')">All Listings</a>
+    <a onclick="showPage('post-listing')">List Your Pet</a>
+    <a>FAQ</a>
+    <a>Terms of Service</a>
+    <a>Contact Us</a>
+  </div>
+  <p>© 2026 PNW Pet Finder · Great Escape Web & Business Services LLC · pnwpetfinder.com</p>
+</footer>
+
+<script>
+// ── SUPABASE ───────────────────────────────────────────────────────────────
+// ── STRIPE PAYMENT LINKS ───────────────────────────────────────────────────
+// Create Payment Links in Stripe Dashboard → Payment Links → + New
+// Set success URL to: https://yoursite.com?payment=success&listing={CHECKOUT_SESSION_ID}
+// Paste the payment link URLs below
+const STRIPE_LINKS = {
+  standard: 'https://buy.stripe.com/test_3cI5kC99o6pWgn94PY63K00',  // $6.99 — 2 weeks
+  extended: 'https://buy.stripe.com/test_7sYdR8ads9C8c6T6Y663K01',  // $11.99 — 4 weeks
+  featured: 'https://buy.stripe.com/test_6oU28qclAeWsb2PgyG63K02'   // $19.99 — featured
+};
+
+const SUPABASE_URL = 'https://copawohxwjikseigcvqf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvcGF3b2h4d2ppa3NlaWdjdnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MTg5MDgsImV4cCI6MjA5Nzk5NDkwOH0.LRDeGRsW6r-b9_-4eHmcrwKG5VYrYtrT_nG0o0q6BgE';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let currentUser = null;
+let editingId = null;
+let selectedPlan = null;
+let photos = [];
+let pendingListing = null;
+
+const PLANS = {
+  standard: { name: 'Standard — 2 Weeks', price: 6.99, days: 14 },
+  extended: { name: 'Extended — 4 Weeks', price: 11.99, days: 28 },
+  featured: { name: 'Featured — Front Page', price: 19.99, days: 14 }
+};
+
+
+const listings = [
+  { id:'1',  title:'Labradors Retriever',             breed:'Lab',                  species:'Dog', age:'Puppies', price:1200, location:'Olympia, WA',         state:'Washington', desc:'Our beautiful Labrador puppies are growing fast and ready to bring love, loyalty, and joy to their new families. Raised with daily care and socialization, these puppies are playful, affectionate, and well-adjusted. Contact: (360) 789-9610',                                                                                                                                                    contact:{name:'Bruce Solt',    phone:'(360) 789-9610', email:'marygrace@puschridgetrans.com'}, plan:'featured', status:'active',  photo:'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80', photos:['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80'], userId:'demo', postedDate:'2026-06-13', expiryDate:'2026-07-04' },
+  { id:'2',  title:'AKC Pure Bred Chocolate Labs',    breed:'Chocolate Lab',        species:'Dog', age:'8 weeks', price:900,  location:'Spokane, WA',          state:'Washington', desc:'Male AKC pure bred chocolate lab 8 weeks old and ready for a loving home! Contact: (509) 808-4768',                                                                                                                                                                                                                                                                                              contact:{name:'Ashley Pirness',phone:'(509) 808-4768', email:'amariem1984@hotmail.com'},     plan:'featured', status:'active',  photo:'https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=700&q=80', photos:['https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=700&q=80'], userId:'demo', postedDate:'2026-06-13', expiryDate:'2026-06-27' },
+  { id:'3',  title:'Copper',                          breed:'Coonhound',            species:'Dog', age:'8 years', price:50,   location:'Albany, OR',            state:'Oregon',     desc:'Copper is an 8 year old Tree Barking Coonhound. We believe he is a retired hunting dog. He was rescued 15 years ago. Due to a change in family circumstances, his owner can no longer provide the care he needs. He is crated trained, house trained. He would be best in a home with a yard or property. He loves to snuggle and burrow in blankets.',                                          contact:{name:'Carey Bertram', phone:'(779) 537-6283', email:'carey.augusta@proton.me'},      plan:'featured', status:'active',  photo:'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80', photos:['https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80'], userId:'demo', postedDate:'2026-06-13', expiryDate:'2026-06-27' },
+  { id:'4',  title:'AKC Labrador Retrievers',         breed:'Labrador Retriever',   species:'Dog', age:'Puppies', price:1750, location:'Skagit County, WA',    state:'Washington', desc:'Pups were born on 3/22/26 and are now ready for their forever homes! All puppies have been seen by a veterinarian and started on their vaccinations as well as dewclaw removal and microchipped. These puppies have been well socialized to young children, livestock, and other dogs. Both parents come from amazing hunting bloodlines. 5 black males available.',                                contact:{name:'Kendahl',       phone:'(425) 346-8628', email:'kbeecher17@yahoo.com'},        plan:'extended', status:'active',  photo:'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80', photos:['https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80'], userId:'demo', postedDate:'2026-05-26', expiryDate:'2026-06-26' },
+  { id:'5',  title:'German Shepherd Husky pups',      breed:'German Shepherd Mix',  species:'Dog', age:'Puppies', price:150,  location:"Coeur d'Alene, ID",    state:'Idaho',      desc:'I have one girl and two boys left. They are really cool spunky pups with a lot of energy and will ideally need a place with a backyard. They have been dewormed and ready to go to good homes.',                                                                                                                                                                                             contact:{name:'Katelyn',       phone:'(208) 328-8572', email:'rosedoremus0@gmail.com'},      plan:'standard', status:'active',  photo:'https://images.unsplash.com/photo-1586671267731-da2cf3ceeb80?w=700&q=80', photos:['https://images.unsplash.com/photo-1586671267731-da2cf3ceeb80?w=700&q=80'], userId:'demo', postedDate:'2026-06-15', expiryDate:'2026-06-29' },
+  { id:'6',  title:'Winston & Bunny: Tuxedo Cats',    breed:'Domestic Shorthair',   species:'Cat', age:'8 years', price:150,  location:'Lynnwood, WA',         state:'Washington', desc:"Winston and Bunny are only looking for a new home because their owner passed away. They are genuinely some of the sweetest cats you'll ever meet! They love constant petting. They're about 8 years old, spayed/neutered and microchipped, and fully up to date on vaccines.",                                                                                                                   contact:{name:'Katie Michie',  phone:'(414) 788-8092', email:'kathrynlisko@gmail.com'},      plan:'standard', status:'active',  photo:'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=700&q=80', photos:['https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=700&q=80'], userId:'demo', postedDate:'2026-06-21', expiryDate:'2026-07-05' },
+  { id:'7',  title:'Micro-Mini Goldendoodles',        breed:'Goldendoodle',         species:'Dog', age:'9 weeks', price:800,  location:'Yakima, WA',           state:'Washington', desc:'F1b Micro Mini Goldendoodles (14-20 lbs max), 9 weeks old and ready for their new adventures! Both male and female available. For more info contact mikegillespie7650@gmail.com',                                                                                                                                                                                                             contact:{name:'Contact via email', phone:'(210) 570-3506', email:'mikegillespie7650@gmail.com'}, plan:'standard', status:'active', photo:'https://images.unsplash.com/photo-1542696218-cefba42c5be2?w=700&q=80', photos:['https://images.unsplash.com/photo-1542696218-cefba42c5be2?w=700&q=80'], userId:'demo', postedDate:'2026-06-09', expiryDate:'2026-06-23' },
+  { id:'8',  title:'AKC Parti Yorkies',               breed:'Yorkie',               species:'Dog', age:'Puppies', price:3500, location:'Hermiston, OR',        state:'Oregon',     desc:'2 handsome AKC Parti Yorkies available. Full grown size 4-5 pounds. Ready for their furever home in June. Willing to meet halfway.',                                                                                                                                                                                                                                                         contact:{name:'Kassie',        phone:'(541) 701-1168', email:'k.arellano24@hotmail.com'},     plan:'standard', status:'active',  photo:'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=700&q=80', photos:['https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?w=700&q=80'], userId:'demo', postedDate:'2026-05-30', expiryDate:'2026-06-30' },
+  { id:'9',  title:'Pomeranian — Gumdrop',            breed:'Pomeranian',           species:'Dog', age:'Puppy',   price:1200, location:'Springfield, OR',      state:'Oregon',     desc:'"Gumdrop" is a purebred female Pomeranian. She has been dewormed at appropriate intervals and has had a vet examination. She has a super thick, beautiful coat. She has been well socialized and is starting potty training on a grass potty patch. Both parents have wonderful dispositions and have been genetically tested.',                                                                  contact:{name:'Joeleen',       phone:'(541) 610-8050', email:'funflowerpomeranians@gmail.com'}, plan:'standard', status:'active', photo:'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=700&q=80', photos:['https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=700&q=80'], userId:'demo', postedDate:'2026-06-06', expiryDate:'2026-06-20' },
+  { id:'10', title:'Yorkies',                         breed:'Yorkie',               species:'Dog', age:'Puppies', price:1500, location:'Boise, ID',            state:'Idaho',      desc:'Pure bred Yorkies will only get to be 4 to 6 lbs. Have a traditional male and Blonde female. Will be ready for forever home in 2 weeks.',                                                                                                                                                                                                                                                    contact:{name:'Christie',      phone:'(208) 559-6850', email:'levialayna@msn.com'},          plan:'standard', status:'active',  photo:'https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=700&q=80', photos:['https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=700&q=80'], userId:'demo', postedDate:'2026-06-03', expiryDate:'2026-06-17' },
+  { id:'11', title:'Cavapoo',                         breed:'Cavapoo',              species:'Dog', age:'11 weeks',price:2500, location:'Tri-Cities, WA',       state:'Washington', desc:'11 week old sweet cuddle Cavapoo. Will be around 25-30 pounds.',                                                                                                                                                                                                                                                                                                                              contact:{name:'Brittany Quigley', phone:'(503) 997-1813', email:'gruwell122@hotmail.com'},   plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1561037404-61cd46aa615b?w=700&q=80', photos:['https://images.unsplash.com/photo-1561037404-61cd46aa615b?w=700&q=80'], userId:'demo', postedDate:'2026-06-03', expiryDate:'2026-06-17' },
+  { id:'12', title:'Cute and cuddly Cocker Spaniels', breed:'Cocker Spaniel',       species:'Dog', age:'Puppies', price:2000, location:'Seattle, WA',          state:'Washington', desc:'American cocker spaniel puppies.',                                                                                                                                                                                                                                                                                                                                                             contact:{name:'Contact via email', phone:'(206) 247-8071', email:'sarahpitera@gmail.com'},   plan:'extended', status:'expired', photo:'https://images.unsplash.com/photo-1612536057832-2ff7ead58194?w=700&q=80', photos:['https://images.unsplash.com/photo-1612536057832-2ff7ead58194?w=700&q=80'], userId:'demo', postedDate:'2026-04-26', expiryDate:'2026-05-26' },
+  { id:'13', title:'Cane Corso',                      breed:'Cane Corso',           species:'Dog', age:'7 months',price:700,  location:'Clayton, WA',          state:'Washington', desc:'7 month old brindle Corsos. Some males and females. AKC, parents genetic tested. UTD shots. Kennel trained. Ear cropped.',                                                                                                                                                                                                                                                                   contact:{name:'Summer Starks', phone:'(509) 279-9371', email:'kaneisawimp@gmail.com'},       plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1548767797-d8c844163c4a?w=700&q=80', photos:['https://images.unsplash.com/photo-1548767797-d8c844163c4a?w=700&q=80'], userId:'demo', postedDate:'2026-06-03', expiryDate:'2026-06-17' },
+  { id:'14', title:'German Shepherd Puppies',         breed:'German Shepherd',      species:'Dog', age:'8 weeks', price:450,  location:'Spokane, WA',          state:'Washington', desc:'8 weeks old German shepherd puppies. Socialized, potty training, loyal and already showing their intelligence. First shots.',                                                                                                                                                                                                                                                                 contact:{name:'Contact via email', phone:'(509) 263-9687', email:'karadanielleallen@gmail.com'}, plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80', photos:['https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80'], userId:'demo', postedDate:'2026-05-18', expiryDate:'2026-06-01' },
+  { id:'15', title:'German Shepherd Puppies (AKC)',   breed:'German Shepherd',      species:'Dog', age:'Puppies', price:1200, location:'Vashon, WA',           state:'Washington', desc:'Beautiful AKC registered German Shepherd puppies available to approved homes.',                                                                                                                                                                                                                                                                                                              contact:{name:'Contact via email', phone:'(815) 847-8055', email:'mchellberg36713@student.tacomacc.edu'}, plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80', photos:['https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80'], userId:'demo', postedDate:'2026-04-17', expiryDate:'2026-05-17' },
+  { id:'16', title:'Miniature Schnauzer Puppies',     breed:'Schnauzer',            species:'Dog', age:'Puppies', price:1000, location:'Tacoma, WA',           state:'Washington', desc:'Purebred Miniature Schnauzers. Born 02/02/2026. Tail docked, first shot and wormed. Females. Born and raised in my home. Healthy and happy.',                                                                                                                                                                                                                                             contact:{name:'Contact via email', phone:'(253) 262-8435', email:'schnauzer2021@icloud.com'}, plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80', photos:['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80'], userId:'demo', postedDate:'2026-04-17', expiryDate:'2026-05-01' },
+  { id:'17', title:'Doberman Pinscher Puppies',       breed:'Doberman',             species:'Dog', age:'Puppies', price:1000, location:'Tacoma, WA',           state:'Washington', desc:'Purebred. Tail docked, first shot and wormed. Born 02/19/2026. Healthy. Born and raised in my home.',                                                                                                                                                                                                                                                                                     contact:{name:'Contact via email', phone:'(253) 268-9810', email:'nancyperkins1914@icloud.com'}, plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80', photos:['https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80'], userId:'demo', postedDate:'2026-04-18', expiryDate:'2026-05-18' },
+  { id:'18', title:'Golden Collie Female Puppy',      breed:'Golden Retriever Mix', species:'Dog', age:'10 weeks',price:450,  location:'Ferndale, WA',         state:'Washington', desc:'10 weeks old, golden retriever/border collie mix, has first shots and dewormer. Handled by kids and well socialized. Very sweet!',                                                                                                                                                                                                                                                          contact:{name:'Contact via email', phone:'(360) 770-0908', email:'kdchambrs22@gmail.com'},   plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=700&q=80', photos:['https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=700&q=80'], userId:'demo', postedDate:'2026-05-03', expiryDate:'2026-05-17' },
+  { id:'19', title:'Mini Aussie',                     breed:'Mini Australian Shepherd', species:'Dog', age:'Puppies', price:900, location:'Bend, OR',          state:'Oregon',     desc:'They are registered ASDR. They will come with first vaccine, deworming, microchip, and vet exam. The mom is genetically clear and OFA hips and elbow certified. The dad is genetically clear by parentage.',                                                                                                                                                                               contact:{name:'Contact via email', phone:'(541) 410-3731', email:'nltwigg@hotmail.com'},     plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80', photos:['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80'], userId:'demo', postedDate:'2026-05-11', expiryDate:'2026-05-25' },
+  { id:'20', title:'Australian Shepherd — Finn',      breed:'Australian Shepherd',  species:'Dog', age:'1.5 years',price:800,  location:'Sequim, WA',          state:'Washington', desc:'Finn is a 1 1/2 year old neutered male black tri. He is house broke, crate trained, obedience trained, and is the biggest love. He loves to run and play, he would be great on a farm or with an active family.',                                                                                                                                                                        contact:{name:'Denise Ferguson',phone:'(360) 865-2870', email:'deniseworks4u@gmail.com'},    plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80', photos:['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80'], userId:'demo', postedDate:'2026-05-26', expiryDate:'2026-06-09' },
+  { id:'21', title:'Chihuahua Mix',                   breed:'Chihuahua',            species:'Dog', age:'7 weeks', price:350,  location:'Post Falls, ID',       state:'Idaho',      desc:'She is 7 weeks old potty trained and has her shot.',                                                                                                                                                                                                                                                                                                                                        contact:{name:'Contact via email', phone:'(253) 433-6490', email:'emmababy1003@gmail.com'},  plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=700&q=80', photos:['https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=700&q=80'], userId:'demo', postedDate:'2026-04-16', expiryDate:'2026-04-30' },
+  { id:'22', title:'Libitty Danger',                  breed:'Siberian Husky Mix',   species:'Dog', age:'Adult',   price:450,  location:'Vernonia, OR',         state:'Oregon',     desc:"This sweetie thinks she's a cat! Loving eye contact and a warm lap is all she wants. Tested as a Siberian Husky German shepherd mix, she was abandoned in the woods and rescued. She is now spayed and ready for adoption.",                                                                                                                                                              contact:{name:'Contact via email', phone:'(971) 999-1299', email:'angella.l.davis@gmail.com'}, plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80', photos:['https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80'], userId:'demo', postedDate:'2026-04-24', expiryDate:'2026-05-08' },
+  { id:'23', title:'Maltipoo x Mini Pinscher',        breed:'Maltipoo',             species:'Dog', age:'Puppies', price:400,  location:'Des Moines, WA',       state:'Washington', desc:'5 beautiful puppies so loving.',                                                                                                                                                                                                                                                                                                                                                           contact:{name:'Lia Valenzuela', phone:'(206) 845-3644', email:'Liaavalenzuelaa@gmail.com'},  plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1561037404-61cd46aa615b?w=700&q=80', photos:['https://images.unsplash.com/photo-1561037404-61cd46aa615b?w=700&q=80'], userId:'demo', postedDate:'2026-06-03', expiryDate:'2026-06-17' },
+  { id:'24', title:'Rupert Needs a Forever Home!',    breed:'Retriever Mix',        species:'Dog', age:'5 months',price:200,  location:'Beaverton, OR',        state:'Oregon',     desc:"Rupert is the sweetest 5-month-old big baby who is looking for his forever home. This sweet puppy was rescued from a California kill-shelter and is with a foster in Portland. He needs a committed forever home that will never give up on him. He is neutered and UTD on vaccines. Adoption applications reviewed by Into The Wild Farm Rescue.", contact:{name:'Tiffany', phone:'(503) 716-2993', email:'tiffany.lynn341@gmail.com'}, plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80', photos:['https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80'], userId:'demo', postedDate:'2026-05-26', expiryDate:'2026-06-09' },
+  { id:'25', title:'Golden Shepherd Puppies',         breed:'Golden Shepherd',      species:'Dog', age:'Puppies', price:250,  location:'Silverdale, WA',       state:'Washington', desc:'Born 05/23/26. 3 Males in need of a forever home. They will be weaned and with their first round of shots and deworming by July 25, 2026. Minimal rehoming fee to recoup expenses, nonprofit. Not breeders, just a loving family.',                                                                                                                                                       contact:{name:'Ashley Jones',  phone:'(912) 980-0147', email:'aedjones05@gmail.com'},        plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80', photos:['https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=700&q=80'], userId:'demo', postedDate:'2026-06-24', expiryDate:'2026-07-24' },
+  { id:'26', title:'Standard Australian Shepherd Puppies', breed:'Australian Shepherd', species:'Dog', age:'Puppies', price:1000, location:'Maple Valley, WA', state:'Washington', desc:'Purebred Standard Size Australian Shepherd puppies ready for their new homes! Mom is a red tri and dad is a black/white tri. First round of vaccines and de-wormer. Started potty training and socialized with kids, cats and people.',                                                                                                                                                    contact:{name:'Caitlin',       phone:'(206) 453-8197', email:'caitlin0rtega@hotmail.com'},   plan:'standard', status:'expired', photo:'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80', photos:['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80'], userId:'demo', postedDate:'2026-05-27', expiryDate:'2026-06-10' },
+];
+
+
+let users = {};
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────────
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('page-' + p);
+  if (el) { el.classList.add('active'); window.scrollTo(0,0); }
+  if (p === 'home') renderHome();
+  if (p === 'listings') renderAll();
+  if (p === 'dashboard') renderDash();
+}
+
+// ── RENDER CARDS ───────────────────────────────────────────────────────────
+function card(l) {
+  const price = l.price > 0 ? '$' + l.price.toLocaleString() : 'Free';
+  const feat = l.plan === 'featured' && l.status === 'active';
+  const isExp = l.status === 'expired';
+  return `<div class="listing-card${feat?' is-featured':''}${isExp?' is-expired':''}" onclick="openDetail('${l.id}')">
+    <div class="card-img">
+      ${feat ? '<div class="feat-badge">⭐ Featured</div>' : ''}
+      ${isExp ? '<div class="feat-badge" style="background:var(--text-muted)">Expired</div>' : ''}
+      ${l.photo ? `<img src="${l.photo}" alt="${l.breed}" loading="lazy">` : '<div class="card-img-placeholder">🐾</div>'}
+    </div>
+    <div class="card-body">
+      <div class="card-type">${l.species}</div>
+      <div class="card-name">${l.title}</div>
+      <div class="card-loc">📍 ${l.location}</div>
+      <div class="card-footer-row">
+        <div class="card-price">${price}</div>
+        ${l.age ? `<div class="card-age">${l.age}</div>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderHome() {
+  const feat = listings.filter(l => l.status==='active' && l.plan==='featured');
+  const rest = listings.filter(l => l.status==='active' && l.plan!=='featured').slice(0,3);
+  document.getElementById('homeGrid').innerHTML = [...feat,...rest].slice(0,6).map(card).join('');
+}
+
+function renderAll() { filterListings(); }
+
+function filterListings() {
+  const q = (document.getElementById('allSearch') || document.getElementById('homeSearch'))?.value?.toLowerCase() || '';
+  const sp = document.getElementById('allSpecies')?.value || document.getElementById('homeSpecies')?.value || '';
+  const st = document.getElementById('allState')?.value || '';
+
+  const statusFilter = document.getElementById('allStatus')?.value || 'active';
+  const filtered = listings.filter(l => {
+    const matchStatus = statusFilter === 'all' ? true : l.status === statusFilter;
+    if (!matchStatus) return false;
+    const mq = !q || l.title.toLowerCase().includes(q) || l.breed.toLowerCase().includes(q) || l.location.toLowerCase().includes(q);
+    const ms = !sp || l.species === sp;
+    const mst = !st || l.state === st;
+    return mq && ms && mst;
+  });
+
+  const feat = filtered.filter(l => l.plan==='featured');
+  const rest = filtered.filter(l => l.plan!=='featured');
+  const sorted = [...feat,...rest];
+
+  const g = document.getElementById('allGrid');
+  const nr = document.getElementById('noResults');
+  const ct = document.getElementById('listCount');
+  if (g) g.innerHTML = sorted.map(card).join('');
+  if (nr) nr.style.display = sorted.length === 0 ? 'block' : 'none';
+  if (ct) ct.textContent = sorted.length + ' pet' + (sorted.length !== 1 ? 's' : '') + ' looking for home';
+}
+
+function openDetail(id) {
+  const l = listings.find(x => x.id === id);
+  if (!l) return;
+
+  document.getElementById('dMainImg').src = l.photo || '';
+  document.getElementById('dMainImg').alt = l.breed;
+  document.getElementById('dTitle').textContent = l.title;
+  document.getElementById('dPrice').textContent = l.price > 0 ? '$' + l.price.toLocaleString() : 'Free / Rehoming Fee';
+  document.getElementById('dDesc').textContent = l.desc;
+
+  document.getElementById('dThumbs').innerHTML = (l.photos||[]).map((p,i) =>
+    `<img src="${p}" class="detail-thumb${i===0?' on':''}" onclick="swapPhoto('${p}',this)" alt="Photo ${i+1}">`
+  ).join('');
+
+  document.getElementById('dTags').innerHTML = [
+    `<span class="dtag">🐾 ${l.species}</span>`,
+    `<span class="dtag">🐕 ${l.breed}</span>`,
+    l.age ? `<span class="dtag">📅 ${l.age}</span>` : '',
+    `<span class="dtag">📍 ${l.location}</span>`,
+    l.plan==='featured' ? `<span class="dtag" style="border-color:var(--gold);color:#744210">⭐ Featured</span>` : ''
+  ].join('');
+
+  document.getElementById('dSeller').innerHTML = [
+    l.contact.phone ? `<div class="seller-row"><div class="seller-icon">📞</div>${l.contact.phone}</div>` : '',
+    l.contact.email ? `<div class="seller-row"><div class="seller-icon">✉️</div>${l.contact.email}</div>` : '',
+    `<div class="seller-row"><div class="seller-icon">📍</div>${l.location}</div>`
+  ].join('');
+
+  showPage('detail');
+}
+
+function swapPhoto(src, el) {
+  document.getElementById('dMainImg').src = src;
+  document.querySelectorAll('.detail-thumb').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ── AUTH ───────────────────────────────────────────────────────────────────
+async function login() {
+  const email = document.getElementById('liEmail').value.trim();
+  const pass = document.getElementById('liPass').value;
+  const al = document.getElementById('loginAlert');
+  if (!email || !pass) { al.innerHTML = '<div class="alert alert-err">Please fill in all fields.</div>'; return; }
+
+  const loginBtn = al.nextElementSibling;
+  if (loginBtn) { loginBtn.textContent = 'Logging in…'; loginBtn.disabled = true; }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+  if (loginBtn) { loginBtn.textContent = 'Log in'; loginBtn.disabled = false; }
+
+  if (error) {
+    al.innerHTML = '<div class="alert alert-err">Invalid email or password.</div>';
+    return;
+  }
+
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+  currentUser = { id: data.user.id, email, firstName: profile?.first_name || email.split('@')[0], lastName: profile?.last_name || '' };
+  onLogin();
+  closeModal('loginModal');
+  showToast('Welcome back, ' + currentUser.firstName + '!');
+  await loadUserListings();
+}
+
+function signup() {
+  const first = document.getElementById('suFirst').value.trim();
+  const last = document.getElementById('suLast').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const pass = document.getElementById('suPass').value;
+  const al = document.getElementById('signupAlert');
+  if (!first||!last||!email||!pass) { al.innerHTML='<div class="alert alert-err">Please fill in all fields.</div>'; return; }
+  if (pass.length < 8) { al.innerHTML='<div class="alert alert-err">Password must be at least 8 characters.</div>'; return; }
+  if (users[email]) { al.innerHTML='<div class="alert alert-err">An account with this email already exists.</div>'; return; }
+  users[email] = { firstName:first, lastName:last, password:pass, listings:[] };
+  currentUser = { firstName:first, lastName:last, email, listings:[] };
+  onLogin();
+  closeModal('signupModal');
+  showToast('Welcome, ' + first + '!');
+}
+
+function onLogin() {
+  document.getElementById('dashNavLink').style.display = 'block';
+  document.getElementById('logoutNavLink').style.display = 'block';
+  document.getElementById('loginNavLink').style.display = 'none';
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('dashNavLink').style.display = 'none';
+  document.getElementById('logoutNavLink').style.display = 'none';
+  document.getElementById('loginNavLink').style.display = 'block';
+  showPage('home');
+  showToast('Logged out.');
+}
+
+// ── LISTING FORM ───────────────────────────────────────────────────────────
+function selPlan(p) {
+  selectedPlan = p;
+  document.querySelectorAll('.plan-opt').forEach(el => el.classList.remove('sel','sel-feat'));
+  document.getElementById('po-'+p).classList.add(p==='featured'?'sel-feat':'sel');
+}
+
+function photoSel(e) { addPhotos(Array.from(e.target.files)); }
+function dOver(e) { e.preventDefault(); document.getElementById('photoDrop').classList.add('drag'); }
+function dDrop(e) {
+  e.preventDefault();
+  document.getElementById('photoDrop').classList.remove('drag');
+  addPhotos(Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')));
+}
+
+function addPhotos(files) {
+  files.slice(0, 10 - photos.length).forEach(f => {
+    const r = new FileReader();
+    r.onload = ev => { photos.push(ev.target.result); renderPhotos(); };
+    r.readAsDataURL(f);
+  });
+}
+
+function renderPhotos() {
+  document.getElementById('photoGrid').innerHTML = photos.map((s,i) =>
+    `<div class="photo-thumb-wrap"><img src="${s}" alt="Photo ${i+1}"><button class="photo-rm" onclick="rmPhoto(${i})">×</button></div>`
+  ).join('');
+}
+
+function rmPhoto(i) { photos.splice(i,1); renderPhotos(); }
+
+function getState(loc) {
+  const l = loc.toLowerCase();
+  if (l.includes(', wa')||l.includes('washington')) return 'Washington';
+  if (l.includes(', id')||l.includes('idaho')) return 'Idaho';
+  if (l.includes(', or')||l.includes('oregon')) return 'Oregon';
+  return 'Washington';
+}
+
+function expiry(days) {
+  const d = new Date(); d.setDate(d.getDate()+days);
+  return d.toISOString().split('T')[0];
+}
+
+function submitListing() {
+  const al = document.getElementById('lfAlert');
+  const name = document.getElementById('pName').value.trim();
+  const breed = document.getElementById('pBreed').value.trim();
+  const loc = document.getElementById('pLocation').value.trim();
+  const desc = document.getElementById('pDesc').value.trim();
+  const seller = document.getElementById('pSeller').value.trim();
+  const email = document.getElementById('pEmail').value.trim();
+
+  if (!name||!breed||!loc||!desc||!seller||!email) {
+    al.innerHTML = '<div class="alert alert-err">Please fill in all required fields.</div>';
+    window.scrollTo(0,0); return;
+  }
+  if (!selectedPlan) { al.innerHTML = '<div class="alert alert-err">Please select a listing plan.</div>'; return; }
+  if (!currentUser) {
+    al.innerHTML = '<div class="alert alert-info">Please <a class="f-link" onclick="openModal(\'loginModal\')">log in</a> or <a class="f-link" onclick="openModal(\'signupModal\')">create an account</a> first.</div>';
+    return;
+  }
+  al.innerHTML = '';
+
+  pendingListing = {
+    id: Date.now().toString(), title: name, breed,
+    species: document.getElementById('pSpecies').value,
+    age: document.getElementById('pAge').value,
+    price: parseFloat(document.getElementById('pPrice').value)||0,
+    location: loc, state: getState(loc), desc,
+    contact: { name: seller, phone: document.getElementById('pPhone').value, email },
+    plan: selectedPlan, status: 'pending',
+    photo: photos[0]||'', photos: [...photos],
+    userId: currentUser.email,
+    postedDate: new Date().toISOString().split('T')[0],
+    expiryDate: expiry(PLANS[selectedPlan].days)
+  };
+
+  const plan = PLANS[selectedPlan];
+  document.getElementById('paySummary').textContent = name + ' the ' + breed + ' — ' + loc;
+  document.getElementById('payPlanName').textContent = plan.name;
+  document.getElementById('payAmt').textContent = '$' + plan.price.toFixed(2);
+  document.getElementById('payPlanDesc').textContent =
+    selectedPlan === 'standard' ? 'Listed for 14 days · Up to 10 photos · Edit anytime' :
+    selectedPlan === 'extended' ? 'Listed for 28 days · Up to 10 photos · Edit anytime' :
+    'Front page placement for 14 days · Featured badge · Priority in search';
+  openModal('payModal');
+}
+
+function fmtCard(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,16);
+  el.value = v.replace(/(.{4})/g,'$1 ').trim();
+}
+
+async function processPayment() {
+  if (!currentUser) {
+    showToast('Please log in first.');
+    closeModal('payModal');
+    openModal('loginModal');
+    return;
+  }
+
+  if (!pendingListing) return;
+
+  const btn = document.getElementById('payBtn');
+  btn.textContent = 'Saving listing…';
+  btn.disabled = true;
+
+  try {
+    // Save listing as pending in Supabase first
+    const saved = await savePendingListingToSupabase(pendingListing);
+    const listingId = saved ? saved.id : 'local_' + Date.now();
+
+    if (saved) {
+      sessionStorage.setItem('pendingListingId', saved.id);
+    } else {
+      // Fallback — store in sessionStorage
+      pendingListing.id = listingId;
+      sessionStorage.setItem('pendingListingData', JSON.stringify(pendingListing));
+    }
+    sessionStorage.setItem('pendingListingPlan', pendingListing.plan);
+
+    const paymentLink = STRIPE_LINKS[pendingListing.plan];
+
+    // Demo mode — price links not yet configured
+    if (paymentLink.includes('REPLACE_')) {
+      showToast('Demo mode — simulating payment...');
+      setTimeout(async () => {
+        if (saved) await activateListingById(saved.id);
+        else {
+          pendingListing.status = 'active';
+          listings.unshift({...pendingListing});
+        }
+        btn.textContent = 'Pay'; btn.disabled = false;
+        closeModal('payModal');
+        resetForm();
+        sessionStorage.removeItem('pendingListingId');
+        sessionStorage.removeItem('pendingListingData');
+        if (currentUser) await loadUserListings();
+        showPage('success');
+      }, 1500);
+      return;
+    }
+
+    // Build the return URL with listing ID embedded
+    const returnBase = window.location.origin + window.location.pathname;
+    const successUrl = returnBase + '?payment=success&listing=' + listingId;
+    const cancelUrl  = returnBase + '?payment=cancelled';
+
+    // Append prefilled email and redirect URLs to payment link
+    const separator = paymentLink.includes('?') ? '&' : '?';
+    const fullUrl = paymentLink
+      + separator + 'prefilled_email=' + encodeURIComponent(currentUser.email)
+      + '&client_reference_id=' + listingId
+      + '&success_url=' + encodeURIComponent(successUrl)
+      + '&cancel_url='  + encodeURIComponent(cancelUrl);
+
+    window.location.href = fullUrl;
+
+  } catch(e) {
+    console.error('Payment error:', e);
+    showToast('Payment error: ' + (e.message || 'Unknown error'));
+    btn.textContent = 'Pay'; btn.disabled = false;
+  }
+}
+
+async function savePendingListingToSupabase(listing) {
+  try {
+    console.log('Saving listing for user:', currentUser.id);
+    const insertData = {
+      user_id: currentUser.id,
+      title: listing.title || 'Untitled',
+      breed: listing.breed || 'Unknown',
+      species: listing.species || 'Dog',
+      age: listing.age || null,
+      price: parseFloat(listing.price) || 0,
+      location: listing.location || '',
+      state: listing.state || 'Washington',
+      description: listing.desc || '',
+      contact_name: listing.contact?.name || '',
+      contact_phone: listing.contact?.phone || '',
+      contact_email: listing.contact?.email || '',
+      plan: listing.plan || 'standard',
+      status: 'pending',
+      photo_url: listing.photo || null,
+      photos: listing.photos || [],
+      featured: listing.plan === 'featured',
+      posted_date: listing.postedDate || new Date().toISOString().split('T')[0],
+      expiry_date: listing.expiryDate || new Date(Date.now() + 14*24*60*60*1000).toISOString().split('T')[0]
+    };
+    console.log('Insert data:', JSON.stringify(insertData, null, 2));
+    const { data, error } = await sb.from('listings').insert(insertData).select().single();
+    if (error) {
+      console.error('Supabase insert error:', error.message, error.details, error.hint);
+      throw error;
+    }
+    console.log('Listing saved successfully:', data.id);
+    return data;
+  } catch(e) {
+    console.error('Error saving pending listing:', e.message || e);
+    return null;
+  }
+}
+
+async function activateListingById(id) {
+  try {
+    await sb.from('listings').update({
+      status: 'active',
+      posted_date: new Date().toISOString().split('T')[0]
+    }).eq('id', id).eq('user_id', currentUser.id);
+  } catch(e) { console.error('Error activating listing:', e); }
+}
+
+async function handlePaymentReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const payment = params.get('payment');
+  const listingId = params.get('listing');
+
+  if (payment === 'success' && listingId) {
+    // Activate the listing in Supabase
+    await activateListingById(listingId);
+    sessionStorage.removeItem('pendingListingId');
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    resetForm();
+    if (currentUser) await loadUserListings();
+    showPage('success');
+  } else if (payment === 'cancelled') {
+    window.history.replaceState({}, '', window.location.pathname);
+    showToast('Payment cancelled — your listing was not published.');
+    showPage('post-listing');
+  }
+}
+
+function resetForm() {
+  ['pName','pBreed','pAge','pPrice','pLocation','pDesc','pSeller','pPhone','pEmail'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  photos = []; selectedPlan = null; pendingListing = null;
+  renderPhotos();
+  document.querySelectorAll('.plan-opt').forEach(el => el.classList.remove('sel','sel-feat'));
+  document.getElementById('lfAlert').innerHTML = '';
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────
+function daysRemaining(expiryDate) {
+  const now = new Date();
+  const exp = new Date(expiryDate);
+  const diff = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
+function daysProgress(postedDate, expiryDate) {
+  const start = new Date(postedDate);
+  const end = new Date(expiryDate);
+  const now = new Date();
+  const total = end - start;
+  const elapsed = now - start;
+  return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+}
+
+function buildListingCard(l) {
+  const isFeat = l.plan === 'featured' && l.status === 'active';
+  const isActive = l.status === 'active';
+  const isExp = l.status === 'expired' || l.status === 'sold';
+  const days = daysRemaining(l.expiryDate);
+  const prog = daysProgress(l.postedDate, l.expiryDate);
+  const remaining = isExp ? 'Expired' : days <= 0 ? 'Expired today' : days === 1 ? '1 day remaining' : days + ' days remaining';
+  const progPct = isExp ? 100 : prog;
+  const progClass = isFeat ? 'feat' : isExp ? 'exp' : '';
+
+  const badge = isFeat
+    ? '<span class="sbadge sb-feat">⭐ Featured</span>'
+    : isActive
+      ? '<span class="sbadge sb-active">Active</span>'
+      : l.status === 'sold'
+        ? '<span class="sbadge sb-sold">Sold</span>'
+        : '<span class="sbadge sb-exp">Expired</span>';
+
+  const cardClass = isFeat ? 'is-featured-card' : isActive ? 'is-active' : 'is-expired-card';
+
+  return `<div class="listing-mgmt-card ${cardClass}" id="lmc-${l.id}">
+    <div class="lmc-main">
+      <div class="lmc-img">
+        ${l.photo ? `<img src="${l.photo}" alt="${l.breed}">` : '🐾'}
+      </div>
+      <div class="lmc-info">
+        <div class="lmc-top">
+          <span class="lmc-title">${l.title}</span>
+          ${badge}
+        </div>
+        <div class="lmc-meta">
+          ${l.breed} · ${l.location} · $${l.price > 0 ? l.price.toLocaleString() : 'Free'}
+          · Posted ${l.postedDate} · Expires ${l.expiryDate}
+        </div>
+        <div class="lmc-progress">
+          <div class="lmc-progress-bar ${progClass}" style="width:${progPct}%"></div>
+        </div>
+        <div class="lmc-days">${remaining}</div>
+      </div>
+    </div>
+    <div class="lmc-actions">
+      ${isActive ? `
+        <button class="btn btn-outline-navy" onclick="toggleEditPanel('${l.id}')">✏️ Edit Listing</button>
+        <button class="btn btn-ghost" onclick="openDetail('${l.id}')">👁 Preview</button>
+        <button class="btn" style="background:#fff5f5;color:var(--error);border:1.5px solid #fed7d7" onclick="markListingSold('${l.id}')">Mark as Sold</button>
+        <button class="btn" style="background:#fff5f5;color:var(--error);border:1.5px solid #fed7d7;margin-left:auto" onclick="delListing('${l.id}')">Remove</button>
+      ` : `
+        <button class="btn btn-navy" onclick="relistListing('${l.id}')">↩ Relist for $6.99</button>
+        <button class="btn btn-ghost" onclick="openDetail('${l.id}')">👁 View</button>
+        <button class="btn" style="background:#fff5f5;color:var(--error);border:1.5px solid #fed7d7;margin-left:auto" onclick="delListing('${l.id}')">Delete</button>
+      `}
+    </div>
+    ${isActive ? `
+    <div class="lmc-edit-panel" id="ep-${l.id}">
+      <h3>Edit Listing</h3>
+      <div class="edit-grid">
+        <div class="fg"><label class="fl">Pet Name</label><input class="fi" id="e_name_${l.id}" value="${l.title.replace(/"/g,'&quot;')}"></div>
+        <div class="fg"><label class="fl">Species</label>
+          <select class="fi" id="e_species_${l.id}">
+            <option${l.species==='Dog'?' selected':''}>Dog</option>
+            <option${l.species==='Cat'?' selected':''}>Cat</option>
+            <option${l.species==='Other'?' selected':''}>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">Breed</label><input class="fi" id="e_breed_${l.id}" value="${(l.breed||'').replace(/"/g,'&quot;')}"></div>
+        <div class="fg"><label class="fl">Age</label><input class="fi" id="e_age_${l.id}" value="${(l.age||'').replace(/"/g,'&quot;')}"></div>
+        <div class="fg"><label class="fl">Price ($)</label><input class="fi" type="number" id="e_price_${l.id}" value="${l.price}"></div>
+        <div class="fg"><label class="fl">Location</label><input class="fi" id="e_location_${l.id}" value="${(l.location||'').replace(/"/g,'&quot;')}"></div>
+        <div class="fg"><label class="fl">Phone</label><input class="fi" id="e_phone_${l.id}" value="${(l.contact?.phone||'').replace(/"/g,'&quot;')}"></div>
+        <div class="fg"><label class="fl">Email</label><input class="fi" id="e_email_${l.id}" value="${(l.contact?.email||'').replace(/"/g,'&quot;')}"></div>
+        <div class="fg full"><label class="fl">Description</label><textarea class="fi" id="e_desc_${l.id}">${l.desc||''}</textarea></div>
+      </div>
+      <div class="save-row">
+        <button class="btn btn-navy" onclick="saveInlineEdit('${l.id}')">✓ Save Changes</button>
+        <button class="btn btn-ghost" onclick="toggleEditPanel('${l.id}')">Cancel</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+function toggleEditPanel(id) {
+  const panel = document.getElementById('ep-' + id);
+  if (panel) panel.classList.toggle('open');
+}
+
+async function saveInlineEdit(id) {
+  const l = listings.find(x => x.id === id);
+  if (!l) return;
+  l.title    = document.getElementById('e_name_' + id).value;
+  l.species  = document.getElementById('e_species_' + id).value;
+  l.breed    = document.getElementById('e_breed_' + id).value;
+  l.age      = document.getElementById('e_age_' + id).value;
+  l.price    = parseFloat(document.getElementById('e_price_' + id).value) || 0;
+  l.location = document.getElementById('e_location_' + id).value;
+  l.state    = getState(l.location);
+  l.desc     = document.getElementById('e_desc_' + id).value;
+  l.contact  = l.contact || {};
+  l.contact.phone = document.getElementById('e_phone_' + id).value;
+  l.contact.email = document.getElementById('e_email_' + id).value;
+  // Persist to Supabase
+  if (currentUser && currentUser.id) await updateListingInSupabase(id, l);
+  showToast('Listing updated successfully!');
+  renderDash();
+}
+
+async function markListingSold(id) {
+  const l = listings.find(x => x.id === id);
+  if (l) {
+    l.status = 'sold';
+    if (currentUser && currentUser.id) await markListingSoldInSupabase(id);
+  }
+  showToast('Listing marked as sold and removed from the public directory.');
+  renderDash();
+}
+
+function relistListing(id) {
+  const l = listings.find(x => x.id === id);
+  if (!l) return;
+  pendingListing = { ...l, id: Date.now().toString(), status: 'pending', postedDate: new Date().toISOString().split('T')[0], expiryDate: expiry(14) };
+  selectedPlan = 'standard';
+  document.getElementById('paySummary').textContent = 'Standard — 2 Weeks · Relist ' + l.title;
+  document.getElementById('payAmt').textContent = '$6.99';
+  openModal('payModal');
+}
+
+function renderDash() {
+  if (!currentUser) { openModal('loginModal'); showPage('home'); return; }
+  document.getElementById('dashHi').textContent = 'Welcome back, ' + currentUser.firstName + '!';
+  document.getElementById('dashSub').textContent = 'Manage your listings, edit details, and track your posts.';
+
+  const mine = listings.filter(l => l.userId === currentUser.email);
+  const active = mine.filter(l => l.status === 'active');
+  const expired = mine.filter(l => l.status === 'expired' || l.status === 'sold');
+  const featured = mine.filter(l => l.plan === 'featured' && l.status === 'active');
+
+  // Stats
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat-box">
+      <div class="stat-lbl">Active</div>
+      <div class="stat-val">${active.length}</div>
+      <div class="stat-sub">live listings</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-lbl">Featured</div>
+      <div class="stat-val">${featured.length}</div>
+      <div class="stat-sub">front page</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-lbl">Past</div>
+      <div class="stat-val">${expired.length}</div>
+      <div class="stat-sub">expired / sold</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-lbl">Total</div>
+      <div class="stat-val">${mine.length}</div>
+      <div class="stat-sub">all time</div>
+    </div>
+  `;
+
+  // Active listings
+  const activeEl = document.getElementById('activeListings');
+  const noActive = document.getElementById('noActive');
+  if (active.length === 0) {
+    activeEl.innerHTML = '';
+    noActive.style.display = 'block';
+  } else {
+    noActive.style.display = 'none';
+    activeEl.innerHTML = active.map(buildListingCard).join('');
+  }
+
+  // Expired listings
+  const expEl = document.getElementById('expiredListings');
+  const noExp = document.getElementById('noExpired');
+  const expCt = document.getElementById('expiredCount');
+  if (expired.length === 0) {
+    expEl.innerHTML = '';
+    noExp.style.display = 'block';
+    if (expCt) expCt.textContent = '';
+  } else {
+    noExp.style.display = 'none';
+    if (expCt) expCt.textContent = expired.length + ' listing' + (expired.length !== 1 ? 's' : '');
+    expEl.innerHTML = expired.map(buildListingCard).join('');
+  }
+}
+
+function startEdit(id) { toggleEditPanel(id); }
+function saveEdit() {}
+function markSold() {}
+
+async function delListing(id) {
+  if (currentUser && currentUser.id) await deleteListingFromSupabase(id);
+  listings = listings.filter(l => l.id !== id);
+  showToast('Listing removed.');
+  renderDash();
+}
+
+// ── MODALS ─────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function switchModal(a,b) { closeModal(a); openModal(b); }
+
+document.querySelectorAll('.modal-overlay').forEach(el =>
+  el.addEventListener('click', e => { if (e.target===el) el.classList.remove('active'); })
+);
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 2800);
+}
+
+function copyLink() { navigator.clipboard.writeText(window.location.href).catch(()=>{}); showToast('Link copied!'); }
+
+
+
+// ── SUPABASE LISTING FUNCTIONS ────────────────────────────────────────────
+
+async function loadPublicListings() {
+  try {
+    const { data, error } = await sb.from('listings').select('*').eq('status','active').order('featured',{ascending:false}).order('created_at',{ascending:false});
+    if (error) throw error;
+    if (data && data.length > 0) {
+      const mapped = data.map(mapRow);
+      listings = [...mapped, ...listings.filter(l => l.userId === 'demo@pnwpetfinder.com')];
+      renderHome();
+      filterListings();
+    }
+  } catch(e) { console.log('Using local listings (Supabase not connected yet)'); }
+}
+
+async function loadUserListings() {
+  if (!currentUser || !currentUser.id) return;
+  try {
+    const { data, error } = await sb.from('listings').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
+    if (error) throw error;
+    if (data) {
+      const mapped = data.map(mapRow);
+      listings = [...listings.filter(l => l.userId !== currentUser.id), ...mapped];
+      renderDash();
+    }
+  } catch(e) { console.log('Could not load user listings:', e.message); }
+}
+
+function mapRow(r) {
+  return {
+    id: r.id, title: r.title, breed: r.breed, species: r.species,
+    age: r.age, price: r.price, location: r.location, state: r.state,
+    desc: r.description,
+    contact: { name: r.contact_name, phone: r.contact_phone, email: r.contact_email },
+    plan: r.plan, status: r.status,
+    photo: r.photo_url, photos: r.photos || [],
+    userId: r.user_id, postedDate: r.posted_date, expiryDate: r.expiry_date
+  };
+}
+
+async function saveListingToSupabase(listing) {
+  try {
+    const { data, error } = await sb.from('listings').insert({
+      user_id: currentUser.id, title: listing.title, breed: listing.breed,
+      species: listing.species, age: listing.age, price: listing.price,
+      location: listing.location, state: listing.state, description: listing.desc,
+      contact_name: listing.contact.name, contact_phone: listing.contact.phone,
+      contact_email: listing.contact.email, plan: listing.plan, status: 'active',
+      photo_url: listing.photo || null, photos: listing.photos || [],
+      featured: listing.plan === 'featured',
+      posted_date: listing.postedDate, expiry_date: listing.expiryDate
+    }).select().single();
+    if (error) throw error;
+    return data;
+  } catch(e) { console.error('Error saving listing:', e); return null; }
+}
+
+async function updateListingInSupabase(id, l) {
+  try {
+    await sb.from('listings').update({
+      title: l.title, breed: l.breed, species: l.species, age: l.age,
+      price: l.price, location: l.location, state: l.state, description: l.desc,
+      contact_name: l.contact?.name, contact_phone: l.contact?.phone, contact_email: l.contact?.email
+    }).eq('id', id).eq('user_id', currentUser.id);
+  } catch(e) { console.error('Error updating:', e); }
+}
+
+async function markListingSoldInSupabase(id) {
+  try { await sb.from('listings').update({status:'sold'}).eq('id',id).eq('user_id',currentUser.id); }
+  catch(e) { console.error('Error marking sold:', e); }
+}
+
+async function deleteListingFromSupabase(id) {
+  try { await sb.from('listings').delete().eq('id',id).eq('user_id',currentUser.id); }
+  catch(e) { console.error('Error deleting:', e); }
+}
+
+async function restoreSession() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+      currentUser = {
+        id: session.user.id, email: session.user.email,
+        firstName: profile?.first_name || session.user.email.split('@')[0],
+        lastName: profile?.last_name || ''
+      };
+      onLogin();
+      await loadUserListings();
+    }
+  } catch(e) { console.log('Session restore failed:', e.message); }
+  await loadPublicListings();
+}
+
+// ── BLOG DATA ──────────────────────────────────────────────────────────────
+const blogPosts = [
+  {
+    id: 'bringing-home-puppy',
+    category: 'dogs',
+    title: 'Bringing Home a New Puppy',
+    excerpt: 'The first few days set the tone for everything. Here is how to make your new puppy feel safe and start your life together on the right foot.',
+    date: 'June 2026',
+    readTime: '8 min read',
+    img: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80',
+    body: `
+      <h2>Preparing Before They Arrive</h2>
+      <p>Before your puppy comes home, set up a designated space just for them — a crate, a dog bed, or a quiet corner with their blanket. Puppies feel safer when they have their own spot to retreat to. Remove anything at floor level that could be chewed or swallowed, including electrical cords, shoes, and small objects.</p>
+      <h2>The First Night</h2>
+      <p>The first night is usually the hardest. Your puppy has just left their mother and littermates and everything is new and unfamiliar. Keep their sleeping area close to you if possible, and don't be surprised if there is some whining. A warm blanket and a ticking clock near their bed can help mimic the warmth and heartbeat of their littermates.</p>
+      <h2>The First Week</h2>
+      <p>For the first few days, keep things calm and low key. Limit visitors and loud environments while your puppy adjusts. Let them explore at their own pace and avoid overwhelming them with too much too soon.</p>
+      <p>Schedule a vet appointment within the first week. Your vet will check for any health issues, confirm vaccination records, and set you up with a deworming and flea prevention schedule.</p>
+      <h2>Feeding Basics</h2>
+      <p>Puppies under 1 year need food specifically formulated for puppies or all life stages. Feed three times a day until around 6 months, then transition to twice a day. Always have fresh water available and change it daily.</p>
+      <h2>Starting Potty Training</h2>
+      <p>Take your puppy outside immediately after waking up, after meals, after playtime, and before bed. Reward every successful outdoor bathroom trip with enthusiastic praise and a small treat. Accidents will happen — clean them up without scolding your puppy, as punishment after the fact doesn't help them learn.</p>
+    `
+  },
+  {
+    id: 'german-shepherd-guide',
+    category: 'dogs',
+    title: 'The Complete German Shepherd Guide for PNW Owners',
+    excerpt: 'Intelligent, loyal, and built for the Pacific Northwest lifestyle. Everything you need to know before bringing a German Shepherd home.',
+    date: 'June 2026',
+    readTime: '15 min read',
+    img: 'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=800&q=80',
+    body: `
+      <h2>About the German Shepherd</h2>
+      <p>The German Shepherd is one of the most recognizable and widely owned dog breeds in the world. Originally developed in Germany in the late 1800s as a herding and working dog, the German Shepherd has evolved into one of the most versatile breeds ever developed. Today they serve as police and military dogs, search and rescue dogs, service and therapy dogs, and beloved family companions.</p>
+      <p>In the Pacific Northwest, German Shepherds are an especially popular choice. Their thick double coat handles the cold and wet PNW climate well, their high energy and intelligence thrive with access to trails and outdoor space, and their loyal, protective nature makes them a natural fit for families across North Idaho, Eastern Washington, Western Washington, and Oregon.</p>
+      <h2>Temperament</h2>
+      <p>German Shepherds are known for being confident, courageous, and deeply loyal to their families. They are natural protectors and will instinctively watch over their home and the people they love. With their own family, German Shepherds are typically affectionate, playful, and gentle. They form extremely strong bonds with their owners and do not do well when left alone for long periods.</p>
+      <h2>Training</h2>
+      <p>German Shepherds are widely considered one of the most trainable breeds in the world. They are quick learners, eager to please, and highly motivated by both food rewards and play. Start training early — puppies can begin basic obedience as early as 8 weeks old. The critical socialization window between 8 and 16 weeks is especially important for this breed.</p>
+      <p>Use positive reinforcement. German Shepherds respond extremely well to reward based training. Punishment based training damages trust and creates fear based behavior.</p>
+      <h2>Exercise in the PNW</h2>
+      <p>Plan for a minimum of 1-2 hours of physical exercise daily. Hiking is one of the best possible exercises for a German Shepherd. The varied terrain, interesting smells, and extended duration hits all the right notes for the breed. Trails around Coeur d'Alene Lake, the Spokane Centennial Trail, and the mountains of Western Washington are all excellent options.</p>
+      <h2>Common Health Issues</h2>
+      <ul>
+        <li><strong>Hip and elbow dysplasia</strong> — the most significant health concern in the breed. Buy from OFA certified parents.</li>
+        <li><strong>Degenerative Myelopathy</strong> — a progressive neurological disease affecting older Shepherds. Genetic testing can identify carriers.</li>
+        <li><strong>Bloat (GDV)</strong> — a life threatening emergency. Symptoms include distended abdomen and unproductive retching. Get to a vet immediately.</li>
+        <li><strong>Fleas and ticks</strong> — year round concerns in the Pacific Northwest. Use vet recommended prevention consistently.</li>
+      </ul>
+    `
+  },
+  {
+    id: 'australian-shepherd-guide',
+    category: 'dogs',
+    title: 'The Complete Australian Shepherd Guide for PNW Owners',
+    excerpt: 'Athletic, intelligent, and strikingly beautiful — Aussies are a natural fit for the Pacific Northwest. But they are a serious commitment.',
+    date: 'June 2026',
+    readTime: '14 min read',
+    img: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80',
+    body: `
+      <h2>About the Australian Shepherd</h2>
+      <p>Despite the name, the Australian Shepherd was actually developed in the United States — most likely in the American West during the 1800s, where they were prized as working ranch and herding dogs. Today the Australian Shepherd is one of the most popular breeds in the country, and in the Pacific Northwest specifically, the Aussie has found a natural home.</p>
+      <p>Australian Shepherds come in two main sizes — standard and miniature. Standard Aussies typically weigh between 40 and 65 pounds. Mini Aussies are a smaller version, typically 20-40 pounds. Both sizes share the same intelligence, energy, and herding instinct.</p>
+      <h2>Temperament</h2>
+      <p>Australian Shepherds are energetic, intelligent, and intensely loyal. They form extremely strong bonds with their families and are often described as velcro dogs — they want to be wherever you are, doing whatever you are doing. Aussies are naturally alert and observant. They can be prone to barking if not properly trained and managed. A well exercised and mentally stimulated Aussie is a quiet Aussie.</p>
+      <h2>Training</h2>
+      <p>Australian Shepherds are among the most trainable dogs in the world. Start immediately — puppies can start learning basic commands at 8 weeks old. Use positive reinforcement. This breed does not need harsh corrections. Mental stimulation is just as important as physical exercise for this breed.</p>
+      <p>Manage the herding instinct — it will come out, directed at children, other pets, bikes, or anything that moves. Redirect this instinct into appropriate outlets like herding sports, fetch, or frisbee rather than trying to eliminate it.</p>
+      <h2>Exercise in the PNW</h2>
+      <p>Plan for a minimum of 1-2 hours of vigorous physical activity every day. Hiking, frisbee, agility, and running are all excellent outlets. The PNW is full of excellent dog friendly trails perfect for this breed.</p>
+      <h2>Health Considerations</h2>
+      <ul>
+        <li><strong>MDR1 gene mutation</strong> — makes affected dogs extremely sensitive to certain medications. Test every Aussie before medicating.</li>
+        <li><strong>Hip dysplasia</strong> — buy from OFA certified parents to reduce risk significantly.</li>
+        <li><strong>Collie Eye Anomaly (CEA)</strong> — genetic condition affecting eye development. Reputable breeders test for this.</li>
+        <li><strong>Epilepsy</strong> — higher than average incidence in Australian Shepherds. Ask breeders about family history.</li>
+      </ul>
+    `
+  },
+  {
+    id: 'dog-feeding-basics',
+    category: 'dogs',
+    title: 'Dog Feeding Basics: What to Feed at Every Life Stage',
+    excerpt: 'What you feed your dog matters more than most people realize. A good diet is the foundation of a healthy, long lived dog.',
+    date: 'June 2026',
+    readTime: '6 min read',
+    img: 'https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=800&q=80',
+    body: `
+      <h2>Puppies (Under 1 Year)</h2>
+      <p>Puppies need food specifically formulated for puppies or all life stages. Puppy food is higher in calories, protein, and calcium to support rapid growth. Feed three times a day until around 6 months, then transition to twice a day.</p>
+      <h2>Adult Dogs (1–7 Years)</h2>
+      <p>Adult dogs do well on a high quality dry kibble with meat listed as the first ingredient. Avoid foods with corn, wheat, or soy as the primary ingredients, and steer clear of artificial preservatives and fillers. Measure your dog's food rather than free feeding to prevent obesity.</p>
+      <h2>Senior Dogs (7+ Years)</h2>
+      <p>Senior dogs benefit from lower calorie, joint-supporting formulas. Many senior foods include added glucosamine and omega fatty acids which help with mobility and coat health. Regular vet checkups become especially important as your dog ages.</p>
+      <h2>Foods to Avoid</h2>
+      <p>Never feed your dog: grapes, raisins, onions, garlic, chocolate, xylitol (found in sugar-free products), or macadamia nuts — all of these are toxic to dogs. Avoid table scraps and always transition between food brands gradually over 7-10 days to prevent digestive upset.</p>
+      <h2>Water</h2>
+      <p>Always have fresh water available and change it daily. Adequate hydration is especially important during the warmer PNW summers and after outdoor exercise on our trails.</p>
+    `
+  },
+  {
+    id: 'dog-exercise-pnw',
+    category: 'dogs',
+    title: 'Exercising Your Dog in the Pacific Northwest',
+    excerpt: 'The PNW is one of the best places in the country to be a dog owner. Miles of trails, forests, beaches, and lakes make it easy to keep your dog active year round.',
+    date: 'June 2026',
+    readTime: '7 min read',
+    img: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=800&q=80',
+    body: `
+      <h2>Know Your Breed</h2>
+      <p>A Border Collie needs hours of exercise and mental stimulation daily. A Basset Hound is happy with a couple of short walks. Before getting a dog, research their energy level and make sure it matches your lifestyle. Mismatched energy levels are one of the top reasons dogs end up rehomed.</p>
+      <h2>Rainy Season Tips</h2>
+      <p>Let's be honest — it rains a lot in the PNW. A wet dog is not an excuse to skip exercise. Invest in a good dog raincoat for short coated breeds, and towel dry your dog's paws and belly when you come inside. Regular walks in light rain are perfectly fine for most dogs.</p>
+      <h2>Trail Etiquette</h2>
+      <p>Many PNW trails allow dogs but require them to be on leash. Always check trail rules before heading out. Pick up after your dog — always. If your dog is reactive around other dogs or people, stick to quieter trails during off peak hours.</p>
+      <h2>PNW Activities to Try With Your Dog</h2>
+      <ul>
+        <li>Hiking the trails around Coeur d'Alene Lake and Tubbs Hill</li>
+        <li>Off leash beach time at dog friendly spots along the Washington coast</li>
+        <li>Exploring the Spokane Centennial Trail</li>
+        <li>Swimming at dog friendly lakes throughout North Idaho and Eastern Washington</li>
+        <li>Snowshoeing and winter hikes — many dogs love snow</li>
+      </ul>
+      <h2>Mental Exercise Matters Too</h2>
+      <p>A tired dog is a good dog, but physical exercise alone is not always enough. Puzzle feeders, training sessions, nose work, and interactive toys provide mental stimulation that burns energy just as effectively as a long walk.</p>
+    `
+  },
+  {
+    id: 'bringing-home-cat',
+    category: 'cats',
+    title: 'Bringing Home a New Cat: The Complete Guide',
+    excerpt: 'Cats are creatures of habit and the way you handle the first few days sets the tone for everything. Here is how to get it right.',
+    date: 'June 2026',
+    readTime: '9 min read',
+    img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80',
+    body: `
+      <h2>Before They Arrive</h2>
+      <p>Before your cat arrives, set up a single room as their base camp. Include their litter box, food and water bowls, a hiding spot, a scratching post, and some toys. Resist the urge to give them the run of the whole house right away — too much space too soon is overwhelming for most cats.</p>
+      <h2>The First Days</h2>
+      <p>Let your cat come out of their carrier on their own terms. Place the carrier in the room, open the door, and walk away. Some cats will walk out immediately. Others will sit in the carrier for hours. Both are normal. Never force a cat out — it destroys trust right from the start.</p>
+      <p>For the first few days keep the house calm and quiet. Limit visitors and loud noises. Give your cat time to get comfortable in their base room before slowly introducing the rest of the house — usually after three to seven days.</p>
+      <h2>Introducing Other Pets</h2>
+      <p>If you have other pets, introductions need to be done gradually. Keep the new cat completely separated from existing pets for at least the first week. Then begin scent swapping by exchanging bedding between animals before any face to face contact. Rushing introductions is one of the most common mistakes new cat owners make.</p>
+      <h2>Litter Box Setup</h2>
+      <p>The general rule is one litter box per cat plus one extra. Place them in quiet, low traffic areas and clean daily — cats are fastidious and will avoid a dirty box, often finding an alternative location you won't appreciate.</p>
+      <h2>First Vet Visit</h2>
+      <p>Schedule a vet appointment within the first week to confirm vaccinations, check for parasites, and discuss spay or neuter if not already done.</p>
+    `
+  },
+  {
+    id: 'cat-feeding-basics',
+    category: 'cats',
+    title: 'Cat Feeding Basics: Everything You Need to Know',
+    excerpt: 'Cats are obligate carnivores with specific nutritional needs. Feeding your cat well is one of the most important things you can do for their long term health.',
+    date: 'June 2026',
+    readTime: '7 min read',
+    img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80',
+    body: `
+      <h2>Cats Are Obligate Carnivores</h2>
+      <p>Unlike dogs, cats cannot thrive on a plant based or grain heavy diet. They require nutrients found only in animal tissue to survive. Feeding your cat well is one of the most important things you can do for their long term health.</p>
+      <h2>Kittens (Under 1 Year)</h2>
+      <p>Kittens need kitten specific food that is higher in protein, fat, and calories to fuel their rapid growth. Feed three to four times a day for young kittens, transitioning to twice daily around six months.</p>
+      <h2>Adult Cats (1–7 Years)</h2>
+      <p>Adult cats do well on a high quality wet food, dry food, or a combination of both. Wet food is particularly beneficial because cats have a low thirst drive and often do not drink enough water on their own. The moisture in wet food helps prevent urinary tract issues and kidney disease, both of which are extremely common in cats fed exclusively dry food.</p>
+      <h2>Senior Cats (7+ Years)</h2>
+      <p>Senior cats benefit from easily digestible, high protein formulas. Senior cats are prone to kidney disease, hyperthyroidism, and dental issues. Regular vet checkups become especially important as your cat ages.</p>
+      <h2>Water</h2>
+      <p>Always have fresh water available in multiple locations. Many cats prefer running water — a cat fountain can significantly increase their water intake. Never feed your cat onions, garlic, grapes, raisins, chocolate, or xylitol — all are toxic.</p>
+    `
+  },
+  {
+    id: 'keeping-cats-active',
+    category: 'cats',
+    title: 'Keeping Your Indoor Cat Happy and Active in the PNW',
+    excerpt: 'Indoor cats live significantly longer than outdoor cats — but they need enrichment and activity to stay healthy. Here is how to keep your cat engaged.',
+    date: 'June 2026',
+    readTime: '7 min read',
+    img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80',
+    body: `
+      <h2>The Indoor vs Outdoor Debate</h2>
+      <p>Outdoor cats in the PNW face real risks including traffic, predators such as coyotes and eagles, exposure to disease from other cats, and parasites. The average lifespan of an outdoor cat is significantly shorter than an indoor cat. If you want to give your cat outdoor access, a catio is a popular PNW option that gives cats fresh air without the risks.</p>
+      <h2>Window Perches</h2>
+      <p>Window perches are one of the simplest and most effective enrichment tools for indoor cats. A bird feeder placed outside a window your cat can see from is one of the best investments you can make for an indoor cat's quality of life.</p>
+      <h2>Interactive Play</h2>
+      <p>Cats need at least two dedicated play sessions per day — ten to fifteen minutes each. Use wand toys, laser pointers, or crinkle balls to mimic prey movement. Always end a play session with a small treat or meal to complete the hunting sequence and prevent frustration.</p>
+      <h2>PNW Enrichment Ideas</h2>
+      <ul>
+        <li>Set up a catio or enclosed balcony so your cat can safely experience the outdoors</li>
+        <li>Place a bird feeder outside a window your cat has access to</li>
+        <li>Grow cat grass or catnip on a sunny windowsill — many PNW cats love fresh greens</li>
+        <li>Open a screened window on mild days so your cat can smell fresh air and listen to birds</li>
+        <li>Rotate toys regularly to keep things novel and interesting</li>
+      </ul>
+      <h2>Vertical Space</h2>
+      <p>Cats feel safer and more confident when they can get up high. Cat trees, wall mounted shelves, and window perches give your cat vertical territory to explore and retreat to. In multi-cat households vertical space is especially important as it increases the effective territory available to each cat and reduces conflict.</p>
+    `
+  }
+];
+
+let currentBlogCategory = 'dogs';
+
+function toggleDropdown() {
+  document.getElementById('dropdownMenu').classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+  const dd = document.getElementById('petCareDropdown');
+  if (dd && !dd.contains(e.target)) {
+    document.getElementById('dropdownMenu').classList.remove('open');
+  }
+});
+
+function showBlog(cat) {
+  currentBlogCategory = cat;
+  showPage('blog');
+  renderBlog(cat);
+}
+
+function switchBlogTab(cat) {
+  currentBlogCategory = cat;
+  document.querySelectorAll('.blog-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + cat).classList.add('active');
+  renderBlog(cat);
+}
+
+function renderBlog(cat) {
+  const h1 = document.getElementById('blogHeroTitle');
+  const sub = document.getElementById('blogHeroSub');
+  if (cat === 'dogs') {
+    h1.textContent = 'Dog Care Guides';
+    sub.textContent = 'Everything you need to know about caring for your dog in the Pacific Northwest.';
+    document.getElementById('tab-dogs').classList.add('active');
+    document.getElementById('tab-cats').classList.remove('active');
+  } else {
+    h1.textContent = 'Cat Care Guides';
+    sub.textContent = 'Whether you are a first time cat owner or adding a new feline to the family, find everything you need here.';
+    document.getElementById('tab-cats').classList.add('active');
+    document.getElementById('tab-dogs').classList.remove('active');
+  }
+
+  const posts = blogPosts.filter(p => p.category === cat);
+  document.getElementById('blogGrid').innerHTML = posts.map(p => `
+    <div class="blog-card" onclick="openArticle('${p.id}')">
+      <div class="blog-card-img"><img src="${p.img}" alt="${p.title}" loading="lazy"></div>
+      <div class="blog-card-body">
+        <div class="blog-card-tag">${p.category === 'dogs' ? '🐕 Dogs' : '🐈 Cats'}</div>
+        <div class="blog-card-title">${p.title}</div>
+        <div class="blog-card-excerpt">${p.excerpt}</div>
+        <div class="blog-card-read">${p.readTime} →</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openArticle(id) {
+  const post = blogPosts.find(p => p.id === id);
+  if (!post) return;
+  document.getElementById('articleTag').textContent = post.category === 'dogs' ? '🐕 Dogs' : '🐈 Cats';
+  document.getElementById('articleTitle').textContent = post.title;
+  document.getElementById('articleMeta').textContent = post.date + ' · ' + post.readTime;
+  document.getElementById('articleImg').src = post.img;
+  document.getElementById('articleImg').alt = post.title;
+  document.getElementById('articleBody').innerHTML = post.body;
+  showPage('article');
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+selPlan('extended');
+restoreSession().catch(e => { console.log('Init error:', e); renderHome(); }).then(() => {
+  // Check if returning from Stripe payment
+  handlePaymentReturn();
+});
+</script>
+</body>
+</html>
