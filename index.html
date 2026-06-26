@@ -1503,6 +1503,13 @@
 
     <button class="btn btn-navy btn-full" onclick="submitListing()" style="font-size:15px;padding:15px">Continue to Payment →</button>
     <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:10px">🔒 Secure checkout powered by Stripe</p>
+    <div id="notLoggedInBanner" style="display:none;margin-top:16px;background:#fffdf0;border:1.5px solid var(--gold);border-radius:var(--radius);padding:16px;text-align:center">
+      <p style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:10px">⚠️ You need an account to post a listing</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-navy btn-sm" onclick="closeNotLoggedIn();openModal('loginModal')">Log In</button>
+        <button class="btn btn-outline-navy btn-sm" onclick="closeNotLoggedIn();openModal('signupModal')">Create Free Account</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1571,8 +1578,8 @@
     </div>
     <div class="modal-sub">Log in to manage your listings</div>
     <div id="loginAlert"></div>
-    <div class="fg"><label class="fl">Email</label><input class="fi" id="liEmail" type="email" placeholder="your@email.com"></div>
-    <div class="fg"><label class="fl">Password</label><input class="fi" id="liPass" type="password" placeholder="••••••••"></div>
+    <div class="fg"><label class="fl">Email</label><input class="fi" id="liEmail" type="email" placeholder="your@email.com" autocomplete="email"></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" id="liPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn btn-navy btn-full" onclick="login()" style="margin-top:6px">Log in</button>
     <div class="f-divider"><span>or</span></div>
     <div class="f-foot">Don't have an account? <a class="f-link" onclick="switchModal('loginModal','signupModal')">Sign up free</a></div>
@@ -2055,18 +2062,15 @@ async function processPayment() {
       return;
     }
 
-    // Build the return URL with listing ID embedded
-    const returnBase = window.location.origin + window.location.pathname;
-    const successUrl = returnBase + '?payment=success&listing=' + listingId;
-    const cancelUrl  = returnBase + '?payment=cancelled';
+    // Store listing ID in sessionStorage so we can activate it when Stripe returns
+    sessionStorage.setItem('pendingListingId', listingId);
 
-    // Append prefilled email and redirect URLs to payment link
+    // Append prefilled email to payment link (this works with Payment Links)
+    // Success/cancel URLs are configured in the Stripe Dashboard per payment link
     const separator = paymentLink.includes('?') ? '&' : '?';
     const fullUrl = paymentLink
       + separator + 'prefilled_email=' + encodeURIComponent(currentUser.email)
-      + '&client_reference_id=' + listingId
-      + '&success_url=' + encodeURIComponent(successUrl)
-      + '&cancel_url='  + encodeURIComponent(cancelUrl);
+      + '&client_reference_id=' + listingId;
 
     window.location.href = fullUrl;
 
@@ -2127,13 +2131,16 @@ async function activateListingById(id) {
 async function handlePaymentReturn() {
   const params = new URLSearchParams(window.location.search);
   const payment = params.get('payment');
-  const listingId = params.get('listing');
+  const listingId = params.get('listing') || sessionStorage.getItem('pendingListingId');
 
-  if (payment === 'success' && listingId) {
-    // Activate the listing in Supabase
-    await activateListingById(listingId);
+  if (payment === 'success') {
+    // Activate listing if we have an ID
+    if (listingId && currentUser) {
+      await activateListingById(listingId);
+    }
     sessionStorage.removeItem('pendingListingId');
-    // Clean URL
+    sessionStorage.removeItem('pendingListingData');
+    // Clean the URL
     window.history.replaceState({}, '', window.location.pathname);
     resetForm();
     if (currentUser) await loadUserListings();
@@ -2369,6 +2376,10 @@ async function delListing(id) {
 }
 
 // ── MODALS ─────────────────────────────────────────────────────────────────
+function closeNotLoggedIn() {
+  const b = document.getElementById('notLoggedInBanner');
+  if (b) b.style.display = 'none';
+}
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 function switchModal(a,b) { closeModal(a); openModal(b); }
