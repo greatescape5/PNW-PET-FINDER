@@ -1706,7 +1706,14 @@ const STRIPE_LINKS = {
 
 const SUPABASE_URL = 'https://copawohxwjikseigcvqf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvcGF3b2h4d2ppa3NlaWdjdnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MTg5MDgsImV4cCI6MjA5Nzk5NDkwOH0.LRDeGRsW6r-b9_-4eHmcrwKG5VYrYtrT_nG0o0q6BgE';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: 'pnwpetfinder-auth'
+  }
+});
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -2134,17 +2141,31 @@ async function handlePaymentReturn() {
   const listingId = params.get('listing') || sessionStorage.getItem('pendingListingId');
 
   if (payment === 'success') {
-    // Activate listing if we have an ID
-    if (listingId && currentUser) {
-      await activateListingById(listingId);
-    }
-    sessionStorage.removeItem('pendingListingId');
-    sessionStorage.removeItem('pendingListingData');
-    // Clean the URL
+    // Show success page immediately regardless of auth state
     window.history.replaceState({}, '', window.location.pathname);
-    resetForm();
-    if (currentUser) await loadUserListings();
     showPage('success');
+
+    // Activate listing — wait up to 5 seconds for session to restore
+    if (listingId) {
+      let attempts = 0;
+      const tryActivate = async () => {
+        attempts++;
+        if (currentUser) {
+          await activateListingById(listingId);
+          sessionStorage.removeItem('pendingListingId');
+          sessionStorage.removeItem('pendingListingData');
+          await loadUserListings();
+          resetForm();
+        } else if (attempts < 10) {
+          setTimeout(tryActivate, 500);
+        } else {
+          // Session never restored — still show success, listing activates on next login
+          console.log('Session not available — listing will activate on next login');
+          sessionStorage.removeItem('pendingListingId');
+        }
+      };
+      setTimeout(tryActivate, 500);
+    }
   } else if (payment === 'cancelled') {
     window.history.replaceState({}, '', window.location.pathname);
     showToast('Payment cancelled — your listing was not published.');
@@ -2480,9 +2501,24 @@ async function restoreSession() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
-      const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+      // Ensure profile exists — create it if missing
+      let { data: profile, error: profileErr } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+
+      if (profileErr || !profile) {
+        // Profile missing — create it now
+        const meta = session.user.user_metadata || {};
+        const { data: newProfile } = await sb.from('profiles').upsert({
+          id: session.user.id,
+          email: session.user.email,
+          first_name: meta.first_name || session.user.email.split('@')[0],
+          last_name: meta.last_name || ''
+        }, { onConflict: 'id' }).select().single();
+        profile = newProfile;
+      }
+
       currentUser = {
-        id: session.user.id, email: session.user.email,
+        id: session.user.id,
+        email: session.user.email,
         firstName: profile?.first_name || session.user.email.split('@')[0],
         lastName: profile?.last_name || ''
       };
@@ -2492,6 +2528,26 @@ async function restoreSession() {
   } catch(e) { console.log('Session restore failed:', e.message); }
   await loadPublicListings();
 }
+
+// Listen for auth state changes (keeps user logged in across page loads)
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session && !currentUser) {
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+    currentUser = {
+      id: session.user.id,
+      email: session.user.email,
+      firstName: profile?.first_name || session.user.email.split('@')[0],
+      lastName: profile?.last_name || ''
+    };
+    onLogin();
+    await loadUserListings();
+  } else if (event === 'SIGNED_OUT') {
+    currentUser = null;
+    document.getElementById('dashNavLink').style.display = 'none';
+    document.getElementById('logoutNavLink').style.display = 'none';
+    document.getElementById('loginNavLink').style.display = 'block';
+  }
+});
 
 // ── BLOG DATA ──────────────────────────────────────────────────────────────
 const blogPosts = [
