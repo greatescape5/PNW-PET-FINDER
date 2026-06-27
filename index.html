@@ -1431,25 +1431,31 @@
 
     <div class="lf-section">
       <h2>Pet Details</h2>
+      <div class="fg"><label class="fl">Listing Title *</label><input class="fi" id="pName" placeholder="e.g. German Shepherd Puppies Available"></div>
+      <div class="fg"><label class="fl">Category *</label>
+        <select class="fi" id="pSpecies">
+          <option value="" disabled selected>Select a category…</option>
+          <option value="Dog">Dog</option>
+          <option value="Cat">Cat</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Share Some Info About Your Furry Friend *</label><textarea class="fi" id="pDesc" placeholder="Tell potential buyers about your pet — temperament, health, vaccinations, age, breed details…" style="min-height:120px"></textarea></div>
+      <div class="fg"><label class="fl">Price ($) *</label><input class="fi" id="pPrice" type="number" placeholder="0 for free/rehoming"></div>
       <div class="f-row">
-        <div class="fg"><label class="fl">Pet Name *</label><input class="fi" id="pName" placeholder="e.g. Buddy"></div>
-        <div class="fg"><label class="fl">Species *</label>
-          <select class="fi" id="pSpecies">
-            <option value="Dog">Dog</option>
-            <option value="Cat">Cat</option>
-            <option value="Other">Other</option>
+        <div class="fg">
+          <label class="fl">State *</label>
+          <select class="fi" id="pState">
+            <option value="" disabled selected>Select state…</option>
+            <option value="Washington">Washington</option>
+            <option value="Idaho">Idaho</option>
+            <option value="Oregon">Oregon</option>
           </select>
         </div>
+        <div class="fg"><label class="fl">Town / City *</label><input class="fi" id="pTown" placeholder="e.g. Spokane"></div>
       </div>
-      <div class="f-row">
-        <div class="fg"><label class="fl">Breed *</label><input class="fi" id="pBreed" placeholder="e.g. German Shepherd"></div>
-        <div class="fg"><label class="fl">Age</label><input class="fi" id="pAge" placeholder="e.g. 8 weeks"></div>
-      </div>
-      <div class="f-row">
-        <div class="fg"><label class="fl">Price ($)</label><input class="fi" id="pPrice" type="number" placeholder="0 for free"></div>
-        <div class="fg"><label class="fl">Location *</label><input class="fi" id="pLocation" placeholder="e.g. Spokane, WA"></div>
-      </div>
-      <div class="fg"><label class="fl">Description *</label><textarea class="fi" id="pDesc" placeholder="Tell potential buyers about your pet…"></textarea></div>
+      <div class="fg"><label class="fl">Breed</label><input class="fi" id="pBreed" placeholder="e.g. German Shepherd"></div>
+      <div class="fg"><label class="fl">Age</label><input class="fi" id="pAge" placeholder="e.g. 8 weeks, 2 years"></div>
     </div>
 
     <div class="lf-section">
@@ -1577,9 +1583,9 @@
       <button class="close-x" onclick="closeModal('loginModal')">×</button>
     </div>
     <div class="modal-sub">Log in to manage your listings</div>
-    <div id="loginAlert"></div>
     <div class="fg"><label class="fl">Email</label><input class="fi" id="liEmail" type="email" placeholder="your@email.com" autocomplete="email"></div>
     <div class="fg"><label class="fl">Password</label><input class="fi" id="liPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <div id="loginAlert" style="min-height:0"></div>
     <button class="btn btn-navy btn-full" onclick="login()" style="margin-top:6px">Log in</button>
     <div class="f-divider"><span>or</span></div>
     <div class="f-foot">Don't have an account? <a class="f-link" onclick="switchModal('loginModal','signupModal')">Sign up free</a></div>
@@ -1971,15 +1977,18 @@ function expiry(days) {
 
 function submitListing() {
   const al = document.getElementById('lfAlert');
-  const name = document.getElementById('pName').value.trim();
-  const breed = document.getElementById('pBreed').value.trim();
-  const loc = document.getElementById('pLocation').value.trim();
-  const desc = document.getElementById('pDesc').value.trim();
+  const name   = document.getElementById('pName').value.trim();
+  const desc   = document.getElementById('pDesc').value.trim();
+  const price  = document.getElementById('pPrice').value;
+  const state  = document.getElementById('pState').value;
+  const town   = document.getElementById('pTown').value.trim();
+  const breed  = document.getElementById('pBreed').value.trim();
   const seller = document.getElementById('pSeller').value.trim();
-  const email = document.getElementById('pEmail').value.trim();
+  const email  = document.getElementById('pEmail').value.trim();
+  const loc    = town && state ? town + ', ' + state.substring(0,2).toUpperCase() : (town || state || '');
 
-  if (!name||!breed||!loc||!desc||!seller||!email) {
-    al.innerHTML = '<div class="alert alert-err">Please fill in all required fields.</div>';
+  if (!name||!desc||!state||!town||!seller||!email) {
+    al.innerHTML = '<div class="alert alert-err">Please fill in all required fields — Title, Category, Description, Price, State, Town, and Contact Info.</div>';
     window.scrollTo(0,0); return;
   }
   if (!selectedPlan) { al.innerHTML = '<div class="alert alert-err">Please select a listing plan.</div>'; return; }
@@ -1990,15 +1999,19 @@ function submitListing() {
   al.innerHTML = '';
 
   pendingListing = {
-    id: Date.now().toString(), title: name, breed,
-    species: document.getElementById('pSpecies').value,
-    age: document.getElementById('pAge').value,
-    price: parseFloat(document.getElementById('pPrice').value)||0,
-    location: loc, state: getState(loc), desc,
+    id: Date.now().toString(),
+    title: name,
+    breed: document.getElementById('pBreed').value.trim(),
+    species: document.getElementById('pSpecies').value || 'Dog',
+    age: document.getElementById('pAge').value.trim(),
+    price: parseFloat(price)||0,
+    location: loc,
+    state: state,
+    desc,
     contact: { name: seller, phone: document.getElementById('pPhone').value, email },
     plan: selectedPlan, status: 'pending',
     photo: photos[0]||'', photos: [...photos],
-    userId: currentUser.email,
+    userId: currentUser.id,
     postedDate: new Date().toISOString().split('T')[0],
     expiryDate: expiry(PLANS[selectedPlan].days)
   };
@@ -2174,9 +2187,13 @@ async function handlePaymentReturn() {
 }
 
 function resetForm() {
-  ['pName','pBreed','pAge','pPrice','pLocation','pDesc','pSeller','pPhone','pEmail'].forEach(id => {
+  ['pName','pBreed','pAge','pPrice','pTown','pDesc','pSeller','pPhone','pEmail'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  const pState = document.getElementById('pState');
+  if (pState) pState.selectedIndex = 0;
+  const pSpecies = document.getElementById('pSpecies');
+  if (pSpecies) pSpecies.selectedIndex = 0;
   photos = []; selectedPlan = null; pendingListing = null;
   renderPhotos();
   document.querySelectorAll('.plan-opt').forEach(el => el.classList.remove('sel','sel-feat'));
