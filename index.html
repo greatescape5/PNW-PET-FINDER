@@ -1875,57 +1875,43 @@ function swapPhoto(src, el) {
 // ── AUTH ───────────────────────────────────────────────────────────────────
 async function login() {
   const email = document.getElementById('liEmail').value.trim();
-  const pass = document.getElementById('liPass').value;
-  const al = document.getElementById('loginAlert');
-  if (!email || !pass) { al.innerHTML = '<div class="alert alert-err">Please fill in all fields.</div>'; return; }
+  const pass  = document.getElementById('liPass').value;
+  const al    = document.getElementById('loginAlert');
+  const btn   = document.getElementById('loginSubmitBtn');
 
-  const loginBtn = document.getElementById('loginSubmitBtn');
-  if (loginBtn) { loginBtn.textContent = 'Logging in…'; loginBtn.disabled = true; }
-
-  try {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-
-    if (loginBtn) { loginBtn.textContent = 'Log in'; loginBtn.disabled = false; }
-
-    if (error) {
-      console.error('Login error:', error);
-      al.innerHTML = '<div class="alert alert-err">Invalid email or password. Please try again.</div>';
-      document.getElementById('liPass').value = '';
-      return;
-    }
-
-    // Get or create profile
-    let { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
-    if (!profile) {
-      await sb.from('profiles').upsert({
-        id: data.user.id,
-        email: email,
-        first_name: email.split('@')[0],
-        last_name: ''
-      }, { onConflict: 'id' });
-      profile = { first_name: email.split('@')[0], last_name: '' };
-    }
-
-    currentUser = {
-      id: data.user.id,
-      email,
-      firstName: profile?.first_name || email.split('@')[0],
-      lastName: profile?.last_name || ''
-    };
-
-    al.innerHTML = '';
-    onLogin();
-    closeModal('loginModal');
-    showToast('Welcome back, ' + currentUser.firstName + '!');
-    // Load user listings in background without blocking
-    loadUserListings().catch(e => console.log('loadUserListings error:', e));
-
-  } catch(e) {
-    if (loginBtn) { loginBtn.textContent = 'Log in'; loginBtn.disabled = false; }
-    console.error('Login exception:', e);
-    al.innerHTML = '<div class="alert alert-err">Login failed. Please try again.</div>';
+  al.innerHTML = '';
+  if (!email || !pass) {
+    al.innerHTML = '<div class="alert alert-err">Please enter your email and password.</div>';
+    return;
   }
+
+  btn.textContent = 'Logging in…';
+  btn.disabled = true;
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+  btn.textContent = 'Log in';
+  btn.disabled = false;
+
+  if (error) {
+    al.innerHTML = '<div class="alert alert-err">Incorrect email or password.</div>';
+    document.getElementById('liPass').value = '';
+    return;
+  }
+
+  // Logged in successfully
+  currentUser = {
+    id: data.user.id,
+    email: data.user.email,
+    firstName: data.user.user_metadata?.first_name || data.user.email.split('@')[0],
+    lastName: data.user.user_metadata?.last_name || ''
+  };
+
+  onLogin();
+  closeModal('loginModal');
+  showToast('Welcome back, ' + currentUser.firstName + '!');
 }
+
 
 async function signup() {
   const first = document.getElementById('suFirst').value.trim();
@@ -1933,10 +1919,10 @@ async function signup() {
   const email = document.getElementById('suEmail').value.trim();
   const pass  = document.getElementById('suPass').value;
   const al    = document.getElementById('signupAlert');
+  const btn   = document.querySelector('#signupModal .btn-navy');
 
   al.innerHTML = '';
-
-  if (!first||!last||!email||!pass) {
+  if (!first || !last || !email || !pass) {
     al.innerHTML = '<div class="alert alert-err">Please fill in all fields.</div>';
     return;
   }
@@ -1945,52 +1931,35 @@ async function signup() {
     return;
   }
 
-  const signBtn = document.querySelector('#signupModal .btn-navy');
-  if (signBtn) { signBtn.textContent = 'Creating account…'; signBtn.disabled = true; }
+  if (btn) { btn.textContent = 'Creating account…'; btn.disabled = true; }
 
-  try {
-    const { data, error } = await sb.auth.signUp({
-      email,
-      password: pass,
-      options: { data: { first_name: first, last_name: last } }
-    });
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { first_name: first, last_name: last } }
+  });
 
-    if (signBtn) { signBtn.textContent = 'Create account'; signBtn.disabled = false; }
+  if (btn) { btn.textContent = 'Create account'; btn.disabled = false; }
 
-    if (error) {
-      console.error('Signup error:', error);
-      al.innerHTML = '<div class="alert alert-err">' + error.message + '</div>';
-      return;
-    }
-
-    console.log('Signup success:', data.user?.id);
-
-    // Manually create profile in case trigger doesn't fire
-    if (data.user) {
-      await sb.from('profiles').upsert({
-        id: data.user.id,
-        email: email,
-        first_name: first,
-        last_name: last
-      }, { onConflict: 'id' });
-
-      currentUser = {
-        id: data.user.id,
-        email,
-        firstName: first,
-        lastName: last
-      };
-      onLogin();
-      closeModal('signupModal');
-      showToast('Welcome, ' + first + '!');
-      await loadUserListings();
-    }
-  } catch(e) {
-    if (signBtn) { signBtn.textContent = 'Create account'; signBtn.disabled = false; }
-    console.error('Signup exception:', e);
-    al.innerHTML = '<div class="alert alert-err">Signup failed: ' + e.message + '</div>';
+  if (error) {
+    al.innerHTML = '<div class="alert alert-err">' + error.message + '</div>';
+    return;
   }
+
+  // Manually insert profile row
+  await sb.from('profiles').upsert({
+    id: data.user.id,
+    email: email,
+    first_name: first,
+    last_name: last
+  }, { onConflict: 'id' });
+
+  currentUser = { id: data.user.id, email, firstName: first, lastName: last };
+  onLogin();
+  closeModal('signupModal');
+  showToast('Welcome, ' + first + '! Account created.');
 }
+
 
 function onLogin() {
   document.getElementById('dashNavLink').style.display = 'block';
