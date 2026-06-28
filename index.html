@@ -9,7 +9,7 @@
   <title>PNW Pet Finder — Find & Rehome Pets in the Pacific Northwest</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1711,15 +1711,21 @@ const STRIPE_LINKS = {
 };
 
 const SUPABASE_URL = 'https://copawohxwjikseigcvqf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvcGF3b2h4d2ppa3NlaWdjdnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MTg5MDgsImV4cCI6MjA5Nzk5NDkwOH0.LRDeGRsW6r-b9_-4eHmcrwKG5VYrYtrT_nG0o0q6BgE';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: 'pnwpetfinder-auth'
-  }
-});
+const SUPABASE_ANON_KEY = 'sb_publishable_BHPW9-_axu8DZBaM-X1_BQ_QJHXQmpK';
+let sb;
+try {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'pnwpetfinder-auth'
+    }
+  });
+  console.log('Supabase client initialized OK');
+} catch(e) {
+  console.error('Supabase init failed:', e);
+}
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -1888,28 +1894,48 @@ async function login() {
   btn.textContent = 'Logging in…';
   btn.disabled = true;
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  try {
+    // Add 10 second timeout in case Supabase hangs
+    const loginPromise = sb.auth.signInWithPassword({ email, password: pass });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Login timed out — please try again')), 10000)
+    );
 
-  btn.textContent = 'Log in';
-  btn.disabled = false;
+    const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
 
-  if (error) {
-    al.innerHTML = '<div class="alert alert-err">Incorrect email or password.</div>';
-    document.getElementById('liPass').value = '';
-    return;
+    btn.textContent = 'Log in';
+    btn.disabled = false;
+
+    if (error) {
+      console.error('Supabase login error:', error.message);
+      al.innerHTML = '<div class="alert alert-err">' + error.message + '</div>';
+      document.getElementById('liPass').value = '';
+      return;
+    }
+
+    if (!data || !data.user) {
+      al.innerHTML = '<div class="alert alert-err">Login failed — no user returned. Please try again.</div>';
+      return;
+    }
+
+    console.log('Login success:', data.user.email);
+    currentUser = {
+      id: data.user.id,
+      email: data.user.email,
+      firstName: data.user.user_metadata?.first_name || data.user.email.split('@')[0],
+      lastName: data.user.user_metadata?.last_name || ''
+    };
+
+    onLogin();
+    closeModal('loginModal');
+    showToast('Welcome back, ' + currentUser.firstName + '!');
+
+  } catch(e) {
+    btn.textContent = 'Log in';
+    btn.disabled = false;
+    console.error('Login exception:', e.message);
+    al.innerHTML = '<div class="alert alert-err">' + e.message + '</div>';
   }
-
-  // Logged in successfully
-  currentUser = {
-    id: data.user.id,
-    email: data.user.email,
-    firstName: data.user.user_metadata?.first_name || data.user.email.split('@')[0],
-    lastName: data.user.user_metadata?.last_name || ''
-  };
-
-  onLogin();
-  closeModal('loginModal');
-  showToast('Welcome back, ' + currentUser.firstName + '!');
 }
 
 
