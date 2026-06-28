@@ -1873,7 +1873,7 @@ function swapPhoto(src, el) {
 }
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
-async function login() {
+async async function login() {
   const email = document.getElementById('liEmail').value.trim();
   const pass = document.getElementById('liPass').value;
   const al = document.getElementById('loginAlert');
@@ -1899,20 +1899,69 @@ async function login() {
   await loadUserListings();
 }
 
-function signup() {
+async function signup() {
   const first = document.getElementById('suFirst').value.trim();
-  const last = document.getElementById('suLast').value.trim();
+  const last  = document.getElementById('suLast').value.trim();
   const email = document.getElementById('suEmail').value.trim();
-  const pass = document.getElementById('suPass').value;
-  const al = document.getElementById('signupAlert');
-  if (!first||!last||!email||!pass) { al.innerHTML='<div class="alert alert-err">Please fill in all fields.</div>'; return; }
-  if (pass.length < 8) { al.innerHTML='<div class="alert alert-err">Password must be at least 8 characters.</div>'; return; }
-  if (users[email]) { al.innerHTML='<div class="alert alert-err">An account with this email already exists.</div>'; return; }
-  users[email] = { firstName:first, lastName:last, password:pass, listings:[] };
-  currentUser = { firstName:first, lastName:last, email, listings:[] };
-  onLogin();
-  closeModal('signupModal');
-  showToast('Welcome, ' + first + '!');
+  const pass  = document.getElementById('suPass').value;
+  const al    = document.getElementById('signupAlert');
+
+  al.innerHTML = '';
+
+  if (!first||!last||!email||!pass) {
+    al.innerHTML = '<div class="alert alert-err">Please fill in all fields.</div>';
+    return;
+  }
+  if (pass.length < 8) {
+    al.innerHTML = '<div class="alert alert-err">Password must be at least 8 characters.</div>';
+    return;
+  }
+
+  const signBtn = document.querySelector('#signupModal .btn-navy');
+  if (signBtn) { signBtn.textContent = 'Creating account…'; signBtn.disabled = true; }
+
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password: pass,
+      options: { data: { first_name: first, last_name: last } }
+    });
+
+    if (signBtn) { signBtn.textContent = 'Create account'; signBtn.disabled = false; }
+
+    if (error) {
+      console.error('Signup error:', error);
+      al.innerHTML = '<div class="alert alert-err">' + error.message + '</div>';
+      return;
+    }
+
+    console.log('Signup success:', data.user?.id);
+
+    // Manually create profile in case trigger doesn't fire
+    if (data.user) {
+      await sb.from('profiles').upsert({
+        id: data.user.id,
+        email: email,
+        first_name: first,
+        last_name: last
+      }, { onConflict: 'id' });
+
+      currentUser = {
+        id: data.user.id,
+        email,
+        firstName: first,
+        lastName: last
+      };
+      onLogin();
+      closeModal('signupModal');
+      showToast('Welcome, ' + first + '!');
+      await loadUserListings();
+    }
+  } catch(e) {
+    if (signBtn) { signBtn.textContent = 'Create account'; signBtn.disabled = false; }
+    console.error('Signup exception:', e);
+    al.innerHTML = '<div class="alert alert-err">Signup failed: ' + e.message + '</div>';
+  }
 }
 
 function onLogin() {
