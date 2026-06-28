@@ -1873,7 +1873,7 @@ function swapPhoto(src, el) {
 }
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
-async async function login() {
+async function login() {
   const email = document.getElementById('liEmail').value.trim();
   const pass = document.getElementById('liPass').value;
   const al = document.getElementById('loginAlert');
@@ -2884,10 +2884,21 @@ function openArticle(id) {
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 selPlan('extended');
-restoreSession().catch(e => { console.log('Init error:', e); renderHome(); }).then(() => {
-  // Check if returning from Stripe payment
-  handlePaymentReturn();
-});
+
+// Initialize app
+(async () => {
+  try {
+    await restoreSession();
+  } catch(e) {
+    console.log('Session restore error:', e);
+    renderHome();
+  }
+  try {
+    handlePaymentReturn();
+  } catch(e) {
+    console.log('Payment return error:', e);
+  }
+})();
 </script>
 </body>
 </html>
