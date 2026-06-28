@@ -2582,32 +2582,51 @@ function copyLink() { navigator.clipboard.writeText(window.location.href).catch(
 async function loadPublicListings() {
   try {
     const res = await fetch(SUPABASE_URL + '/rest/v1/listings?status=eq.active&order=featured.desc,created_at.desc', {
-      headers: { 'apikey': SUPABASE_ANON_KEY }
+      headers: { 
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      }
     });
-    if (!res.ok) return;
+    console.log('Public listings fetch status:', res.status);
     const data = await res.json();
-    if (data && data.length > 0) {
+    console.log('Public listings count:', Array.isArray(data) ? data.length : 'error', data.message || '');
+    if (res.ok && Array.isArray(data) && data.length > 0) {
       const mapped = data.map(mapRow);
-      listings = mapped;
+      // Merge DB listings with local hardcoded ones
+      const localOnly = listings.filter(l => !mapped.find(m => m.id === l.id));
+      listings = [...mapped, ...localOnly];
+      renderHome();
+      filterListings();
+    } else {
+      // Keep local listings if DB returns nothing
+      console.log('Using local listings - DB returned:', data);
       renderHome();
       filterListings();
     }
-  } catch(e) { console.log('Using local listings:', e.message); }
+  } catch(e) { 
+    console.log('Public listings error:', e.message);
+    renderHome();
+    filterListings();
+  }
 }
 
 async function loadUserListings() {
   if (!currentUser || !currentUser.id) return;
   try {
     const token = localStorage.getItem('pnw_token');
-    if (!token) return;
-    const res = await fetch(SUPABASE_URL + '/rest/v1/listings?user_id=eq.' + currentUser.id + '&order=created_at.desc&select=*', {
+    if (!token) { console.log('No token for loadUserListings'); return; }
+    const url = SUPABASE_URL + '/rest/v1/listings?user_id=eq.' + currentUser.id + '&order=created_at.desc';
+    console.log('Loading user listings for:', currentUser.id);
+    const res = await fetch(url, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + token
       }
     });
-    if (!res.ok) return;
+    console.log('User listings status:', res.status);
     const data = await res.json();
+    console.log('User listings count:', Array.isArray(data) ? data.length : 'error', data.message || data.hint || '');
+    if (!res.ok || !Array.isArray(data)) return;
     const mapped = data.map(mapRow);
     listings = [...listings.filter(l => l.userId !== currentUser.id && l.userId !== currentUser.email), ...mapped];
     const dashPage = document.getElementById('page-dashboard');
