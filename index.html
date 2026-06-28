@@ -9,7 +9,7 @@
   <title>PNW Pet Finder — Find & Rehome Pets in the Pacific Northwest</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1711,7 +1711,7 @@ const STRIPE_LINKS = {
 };
 
 const SUPABASE_URL = 'https://copawohxwjikseigcvqf.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_BHPW9-_axu8DZBaM-X1_BQ_QJHXQmpK';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvcGF3b2h4d2ppa3NlaWdjdnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MTg5MDgsImV4cCI6MjA5Nzk5NDkwOH0.LRDeGRsW6r-b9_-4eHmcrwKG5VYrYtrT_nG0o0q6BgE';
 let sb;
 try {
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -1895,35 +1895,51 @@ async function login() {
   btn.disabled = true;
 
   try {
-    // Add 10 second timeout in case Supabase hangs
-    const loginPromise = sb.auth.signInWithPassword({ email, password: pass });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Login timed out — please try again')), 10000)
-    );
+    // Use fetch directly — bypasses any SDK initialization issues
+    const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ email, password: pass })
+    });
 
-    const { data, error } = await Promise.race([loginPromise, timeoutPromise]);
+    const result = await res.json();
+    console.log('Login response status:', res.status);
 
     btn.textContent = 'Log in';
     btn.disabled = false;
 
-    if (error) {
-      console.error('Supabase login error:', error.message);
-      al.innerHTML = '<div class="alert alert-err">' + error.message + '</div>';
+    if (!res.ok || result.error) {
+      const msg = result.error_description || result.msg || result.error || 'Incorrect email or password.';
+      al.innerHTML = '<div class="alert alert-err">' + msg + '</div>';
       document.getElementById('liPass').value = '';
       return;
     }
 
-    if (!data || !data.user) {
-      al.innerHTML = '<div class="alert alert-err">Login failed — no user returned. Please try again.</div>';
-      return;
+    // Store session token for future requests
+    const user = result.user;
+    const accessToken = result.access_token;
+    sessionStorage.setItem('pnw_token', accessToken);
+    sessionStorage.setItem('pnw_refresh', result.refresh_token || '');
+    sessionStorage.setItem('pnw_user', JSON.stringify(user));
+
+    // Also set in Supabase SDK if available
+    if (sb && sb.auth && result.access_token) {
+      try {
+        await sb.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token
+        });
+      } catch(e) { console.log('SDK session set failed, using manual token'); }
     }
 
-    console.log('Login success:', data.user.email);
     currentUser = {
-      id: data.user.id,
-      email: data.user.email,
-      firstName: data.user.user_metadata?.first_name || data.user.email.split('@')[0],
-      lastName: data.user.user_metadata?.last_name || ''
+      id: user.id,
+      email: user.email,
+      firstName: user.user_metadata?.first_name || user.email.split('@')[0],
+      lastName: user.user_metadata?.last_name || ''
     };
 
     onLogin();
@@ -1933,8 +1949,8 @@ async function login() {
   } catch(e) {
     btn.textContent = 'Log in';
     btn.disabled = false;
-    console.error('Login exception:', e.message);
-    al.innerHTML = '<div class="alert alert-err">' + e.message + '</div>';
+    console.error('Login error:', e);
+    al.innerHTML = '<div class="alert alert-err">Connection error. Please check your internet and try again.</div>';
   }
 }
 
@@ -1959,31 +1975,67 @@ async function signup() {
 
   if (btn) { btn.textContent = 'Creating account…'; btn.disabled = true; }
 
-  const { data, error } = await sb.auth.signUp({
-    email,
-    password: pass,
-    options: { data: { first_name: first, last_name: last } }
-  });
+  try {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        email, password: pass,
+        data: { first_name: first, last_name: last }
+      })
+    });
 
-  if (btn) { btn.textContent = 'Create account'; btn.disabled = false; }
+    const result = await res.json();
+    if (btn) { btn.textContent = 'Create account'; btn.disabled = false; }
 
-  if (error) {
-    al.innerHTML = '<div class="alert alert-err">' + error.message + '</div>';
-    return;
+    if (!res.ok || result.error) {
+      const msg = result.error_description || result.msg || result.error || 'Signup failed.';
+      al.innerHTML = '<div class="alert alert-err">' + msg + '</div>';
+      return;
+    }
+
+    const user = result.user || result;
+    if (!user || !user.id) {
+      al.innerHTML = '<div class="alert alert-err">Signup failed — please try again.</div>';
+      return;
+    }
+
+    // Store token
+    if (result.access_token) {
+      sessionStorage.setItem('pnw_token', result.access_token);
+      sessionStorage.setItem('pnw_user', JSON.stringify(user));
+
+      // Insert profile using the token
+      await fetch(SUPABASE_URL + '/rest/v1/profiles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + result.access_token,
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          id: user.id,
+          email: email,
+          first_name: first,
+          last_name: last
+        })
+      });
+    }
+
+    currentUser = { id: user.id, email, firstName: first, lastName: last };
+    onLogin();
+    closeModal('signupModal');
+    showToast('Welcome, ' + first + '! Account created.');
+
+  } catch(e) {
+    if (btn) { btn.textContent = 'Create account'; btn.disabled = false; }
+    console.error('Signup error:', e);
+    al.innerHTML = '<div class="alert alert-err">Connection error. Please try again.</div>';
   }
-
-  // Manually insert profile row
-  await sb.from('profiles').upsert({
-    id: data.user.id,
-    email: email,
-    first_name: first,
-    last_name: last
-  }, { onConflict: 'id' });
-
-  currentUser = { id: data.user.id, email, firstName: first, lastName: last };
-  onLogin();
-  closeModal('signupModal');
-  showToast('Welcome, ' + first + '! Account created.');
 }
 
 
