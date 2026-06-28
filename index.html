@@ -1932,6 +1932,14 @@ async function login() {
     closeModal('loginModal');
     showToast('Welcome back, ' + currentUser.firstName + '!');
 
+    // Check if there's a pending listing to activate (from payment return)
+    const pendingId = localStorage.getItem('pendingListingId');
+    if (pendingId) {
+      await activateListingById(pendingId);
+      localStorage.removeItem('pendingListingId');
+    }
+    loadUserListings().catch(e => console.log('loadUserListings error:', e));
+
   } catch(e) {
     btn.textContent = 'Log in';
     btn.disabled = false;
@@ -2191,8 +2199,8 @@ async function processPayment() {
       return;
     }
 
-    // Store listing ID in sessionStorage so we can activate it when Stripe returns
-    sessionStorage.setItem('pendingListingId', listingId);
+    // Store listing ID in localStorage so it survives the Stripe redirect
+    localStorage.setItem('pendingListingId', listingId);
 
     // Append prefilled email to payment link (this works with Payment Links)
     // Success/cancel URLs are configured in the Stripe Dashboard per payment link
@@ -2283,7 +2291,7 @@ async function activateListingById(id) {
 async function handlePaymentReturn() {
   const params = new URLSearchParams(window.location.search);
   const payment = params.get('payment');
-  const listingId = params.get('listing') || sessionStorage.getItem('pendingListingId');
+  const listingId = params.get('listing') || localStorage.getItem('pendingListingId');
 
   if (payment === 'success') {
     // Show success page immediately regardless of auth state
@@ -2297,8 +2305,8 @@ async function handlePaymentReturn() {
         attempts++;
         if (currentUser) {
           await activateListingById(listingId);
-          sessionStorage.removeItem('pendingListingId');
-          sessionStorage.removeItem('pendingListingData');
+          localStorage.removeItem('pendingListingId');
+          localStorage.removeItem('pendingListingData');
           await loadUserListings();
           resetForm();
         } else if (attempts < 10) {
@@ -2306,7 +2314,7 @@ async function handlePaymentReturn() {
         } else {
           // Session never restored — still show success, listing activates on next login
           console.log('Session not available — listing will activate on next login');
-          sessionStorage.removeItem('pendingListingId');
+          localStorage.removeItem('pendingListingId');
         }
       };
       setTimeout(tryActivate, 500);
@@ -2592,7 +2600,7 @@ async function loadUserListings() {
   try {
     const token = localStorage.getItem('pnw_token');
     if (!token) return;
-    const res = await fetch(SUPABASE_URL + '/rest/v1/listings?user_id=eq.' + currentUser.id + '&order=created_at.desc', {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/listings?user_id=eq.' + currentUser.id + '&order=created_at.desc&select=*', {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + token
