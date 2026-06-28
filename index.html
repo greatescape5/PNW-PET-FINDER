@@ -1905,43 +1905,27 @@ async function login() {
     });
 
     const result = await res.json();
-    console.log('Login status:', res.status, 'Result:', JSON.stringify(result).substring(0, 200));
+    console.log('Login result:', res.status, result.error || result.access_token ? 'has_token' : 'no_token');
 
     btn.textContent = 'Log in';
     btn.disabled = false;
 
-    if (!res.ok || result.error || result.error_code) {
-      const msg = result.error_description || result.msg || result.message || result.error || 'Incorrect email or password.';
-      al.innerHTML = '<div class="alert alert-err" style="display:block!important">' + msg + '</div>';
+    if (!res.ok || !result.access_token) {
+      const msg = result.error_description || result.message || result.error || 'Incorrect email or password.';
+      al.innerHTML = '<div class="alert alert-err">' + msg + '</div>';
       return;
     }
 
-    if (!result.access_token) {
-      al.innerHTML = '<div class="alert alert-err" style="display:block!important">Login failed — no token returned. Status: ' + res.status + '</div>';
-      return;
-    }
-
-    const user = result.user;
-
-    // Set session in SDK
-    if (sb) {
-      try {
-        await sb.auth.setSession({
-          access_token: result.access_token,
-          refresh_token: result.refresh_token || ''
-        });
-      } catch(e) { console.log('setSession note:', e.message); }
-    }
-
-    // Store in sessionStorage as backup
-    sessionStorage.setItem('pnw_token', result.access_token);
-    sessionStorage.setItem('pnw_user', JSON.stringify(user));
+    // Save to localStorage so it persists on refresh
+    localStorage.setItem('pnw_token', result.access_token);
+    localStorage.setItem('pnw_refresh', result.refresh_token || '');
+    localStorage.setItem('pnw_user', JSON.stringify(result.user));
 
     currentUser = {
-      id: user.id,
-      email: user.email,
-      firstName: user.user_metadata?.first_name || user.email.split('@')[0],
-      lastName: user.user_metadata?.last_name || ''
+      id: result.user.id,
+      email: result.user.email,
+      firstName: result.user.user_metadata?.first_name || result.user.email.split('@')[0],
+      lastName: result.user.user_metadata?.last_name || ''
     };
 
     onLogin();
@@ -1951,8 +1935,7 @@ async function login() {
   } catch(e) {
     btn.textContent = 'Log in';
     btn.disabled = false;
-    console.error('Login fetch error:', e);
-    al.innerHTML = '<div class="alert alert-err" style="display:block!important">Error: ' + e.message + '</div>';
+    al.innerHTML = '<div class="alert alert-err">Connection error: ' + e.message + '</div>';
   }
 }
 
@@ -2647,38 +2630,40 @@ async function deleteListingFromSupabase(id) {
 
 async function restoreSession() {
   try {
-    // Small delay to ensure Supabase SDK has fully initialized
-    await new Promise(r => setTimeout(r, 100));
+    // Check localStorage for saved session
+    const savedUser = localStorage.getItem('pnw_user');
+    const savedToken = localStorage.getItem('pnw_token');
 
-    const { data: { session }, error: sessionErr } = await sb.auth.getSession();
-    console.log('Session check:', session ? 'Found session for ' + session.user.email : 'No session', sessionErr?.message || '');
+    if (savedUser && savedToken) {
+      const user = JSON.parse(savedUser);
+      console.log('Restoring session for:', user.email);
 
-    if (session && session.user) {
-      const meta = session.user.user_metadata || {};
+      // Verify token is still valid
+      const res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + savedToken
+        }
+      });
 
-      // Get or create profile
-      let { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-
-      if (!profile) {
-        const { data: newProfile } = await sb.from('profiles').upsert({
-          id: session.user.id,
-          email: session.user.email,
-          first_name: meta.first_name || session.user.email.split('@')[0],
-          last_name: meta.last_name || ''
-        }, { onConflict: 'id' }).select().single();
-        profile = newProfile;
+      if (res.ok) {
+        const userData = await res.json();
+        currentUser = {
+          id: userData.id,
+          email: userData.email,
+          firstName: userData.user_metadata?.first_name || userData.email.split('@')[0],
+          lastName: userData.user_metadata?.last_name || ''
+        };
+        onLogin();
+        console.log('Session restored for:', currentUser.firstName);
+        loadUserListings().catch(e => console.log('loadUserListings error:', e));
+      } else {
+        // Token expired - clear storage
+        localStorage.removeItem('pnw_token');
+        localStorage.removeItem('pnw_refresh');
+        localStorage.removeItem('pnw_user');
+        console.log('Saved token expired, cleared.');
       }
-
-      currentUser = {
-        id: session.user.id,
-        email: session.user.email,
-        firstName: profile?.first_name || meta.first_name || session.user.email.split('@')[0],
-        lastName: profile?.last_name || meta.last_name || ''
-      };
-      onLogin();
-      console.log('Session restored for:', currentUser.firstName);
-      // Load listings in background
-      loadUserListings().catch(e => console.log('loadUserListings error:', e));
     }
   } catch(e) {
     console.log('Session restore failed:', e.message);
