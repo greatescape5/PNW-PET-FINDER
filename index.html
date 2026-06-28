@@ -2212,7 +2212,9 @@ async function processPayment() {
 
 async function savePendingListingToSupabase(listing) {
   try {
-    console.log('Saving listing for user:', currentUser.id);
+    const token = localStorage.getItem('pnw_token');
+    if (!token) { console.error('No auth token'); return null; }
+
     const insertData = {
       user_id: currentUser.id,
       title: listing.title || 'Untitled',
@@ -2234,26 +2236,47 @@ async function savePendingListingToSupabase(listing) {
       posted_date: listing.postedDate || new Date().toISOString().split('T')[0],
       expiry_date: listing.expiryDate || new Date(Date.now() + 14*24*60*60*1000).toISOString().split('T')[0]
     };
-    console.log('Insert data:', JSON.stringify(insertData, null, 2));
-    const { data, error } = await sb.from('listings').insert(insertData).select().single();
-    if (error) {
-      console.error('Supabase insert error:', error.message, error.details, error.hint);
-      throw error;
+
+    const res = await fetch(SUPABASE_URL + '/rest/v1/listings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(insertData)
+    });
+
+    const result = await res.json();
+    console.log('Save listing status:', res.status, result);
+
+    if (!res.ok) {
+      console.error('Save listing failed:', result);
+      return null;
     }
-    console.log('Listing saved successfully:', data.id);
-    return data;
+
+    return Array.isArray(result) ? result[0] : result;
   } catch(e) {
-    console.error('Error saving pending listing:', e.message || e);
+    console.error('Error saving listing:', e.message);
     return null;
   }
 }
 
 async function activateListingById(id) {
   try {
-    await sb.from('listings').update({
-      status: 'active',
-      posted_date: new Date().toISOString().split('T')[0]
-    }).eq('id', id).eq('user_id', currentUser.id);
+    const token = localStorage.getItem('pnw_token');
+    if (!token) return;
+    const res = await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id + '&user_id=eq.' + currentUser.id, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ status: 'active', posted_date: new Date().toISOString().split('T')[0] })
+    });
+    console.log('Activate listing:', res.status);
   } catch(e) { console.error('Error activating listing:', e); }
 }
 
@@ -2550,32 +2573,37 @@ function copyLink() { navigator.clipboard.writeText(window.location.href).catch(
 
 async function loadPublicListings() {
   try {
-    const { data, error } = await sb.from('listings').select('*').eq('status','active').order('featured',{ascending:false}).order('created_at',{ascending:false});
-    if (error) throw error;
+    const res = await fetch(SUPABASE_URL + '/rest/v1/listings?status=eq.active&order=featured.desc,created_at.desc', {
+      headers: { 'apikey': SUPABASE_ANON_KEY }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
     if (data && data.length > 0) {
       const mapped = data.map(mapRow);
-      listings = [...mapped, ...listings.filter(l => l.userId === 'demo@pnwpetfinder.com')];
+      listings = mapped;
       renderHome();
       filterListings();
     }
-  } catch(e) { console.log('Using local listings (Supabase not connected yet)'); }
+  } catch(e) { console.log('Using local listings:', e.message); }
 }
 
 async function loadUserListings() {
   if (!currentUser || !currentUser.id) return;
   try {
-    const { data, error } = await sb.from('listings').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
-    if (error) throw error;
-    if (data) {
-      const mapped = data.map(mapRow);
-      // Update listings array but don't force navigate to dashboard
-      listings = [...listings.filter(l => l.userId !== currentUser.id && l.userId !== currentUser.email), ...mapped];
-      // Only re-render dash if user is already on that page
-      const dashPage = document.getElementById('page-dashboard');
-      if (dashPage && dashPage.classList.contains('active')) {
-        renderDash();
+    const token = localStorage.getItem('pnw_token');
+    if (!token) return;
+    const res = await fetch(SUPABASE_URL + '/rest/v1/listings?user_id=eq.' + currentUser.id + '&order=created_at.desc', {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + token
       }
-    }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const mapped = data.map(mapRow);
+    listings = [...listings.filter(l => l.userId !== currentUser.id && l.userId !== currentUser.email), ...mapped];
+    const dashPage = document.getElementById('page-dashboard');
+    if (dashPage && dashPage.classList.contains('active')) renderDash();
   } catch(e) { console.log('Could not load user listings:', e.message); }
 }
 
@@ -2591,41 +2619,49 @@ function mapRow(r) {
   };
 }
 
-async function saveListingToSupabase(listing) {
-  try {
-    const { data, error } = await sb.from('listings').insert({
-      user_id: currentUser.id, title: listing.title, breed: listing.breed,
-      species: listing.species, age: listing.age, price: listing.price,
-      location: listing.location, state: listing.state, description: listing.desc,
-      contact_name: listing.contact.name, contact_phone: listing.contact.phone,
-      contact_email: listing.contact.email, plan: listing.plan, status: 'active',
-      photo_url: listing.photo || null, photos: listing.photos || [],
-      featured: listing.plan === 'featured',
-      posted_date: listing.postedDate, expiry_date: listing.expiryDate
-    }).select().single();
-    if (error) throw error;
-    return data;
-  } catch(e) { console.error('Error saving listing:', e); return null; }
-}
+// saveListingToSupabase replaced by savePendingListingToSupabase
 
 async function updateListingInSupabase(id, l) {
   try {
-    await sb.from('listings').update({
-      title: l.title, breed: l.breed, species: l.species, age: l.age,
-      price: l.price, location: l.location, state: l.state, description: l.desc,
-      contact_name: l.contact?.name, contact_phone: l.contact?.phone, contact_email: l.contact?.email
-    }).eq('id', id).eq('user_id', currentUser.id);
+    const token = localStorage.getItem('pnw_token');
+    if (!token) return;
+    await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id + '&user_id=eq.' + currentUser.id, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        title: l.title, breed: l.breed, species: l.species, age: l.age,
+        price: l.price, location: l.location, state: l.state, description: l.desc,
+        contact_name: l.contact?.name, contact_phone: l.contact?.phone, contact_email: l.contact?.email
+      })
+    });
   } catch(e) { console.error('Error updating:', e); }
 }
 
 async function markListingSoldInSupabase(id) {
-  try { await sb.from('listings').update({status:'sold'}).eq('id',id).eq('user_id',currentUser.id); }
-  catch(e) { console.error('Error marking sold:', e); }
+  try {
+    const token = localStorage.getItem('pnw_token');
+    if (!token) return;
+    await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id + '&user_id=eq.' + currentUser.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ status: 'sold' })
+    });
+  } catch(e) { console.error('Error marking sold:', e); }
 }
 
 async function deleteListingFromSupabase(id) {
-  try { await sb.from('listings').delete().eq('id',id).eq('user_id',currentUser.id); }
-  catch(e) { console.error('Error deleting:', e); }
+  try {
+    const token = localStorage.getItem('pnw_token');
+    if (!token) return;
+    await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id + '&user_id=eq.' + currentUser.id, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token }
+    });
+  } catch(e) { console.error('Error deleting:', e); }
 }
 
 async function restoreSession() {
@@ -2678,24 +2714,13 @@ sb.auth.onAuthStateChange(async (event, session) => {
   if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && session && session.user) {
     if (!currentUser || currentUser.id !== session.user.id) {
       const meta = session.user.user_metadata || {};
-      let { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-      if (!profile) {
-        const { data: np } = await sb.from('profiles').upsert({
-          id: session.user.id,
-          email: session.user.email,
-          first_name: meta.first_name || session.user.email.split('@')[0],
-          last_name: meta.last_name || ''
-        }, { onConflict: 'id' }).select().single();
-        profile = np;
-      }
       currentUser = {
         id: session.user.id,
         email: session.user.email,
-        firstName: profile?.first_name || meta.first_name || session.user.email.split('@')[0],
-        lastName: profile?.last_name || meta.last_name || ''
+        firstName: meta.first_name || session.user.email.split('@')[0],
+        lastName: meta.last_name || ''
       };
       onLogin();
-      // Load listings in background
       loadUserListings().catch(e => console.log('loadUserListings error:', e));
     }
   } else if (event === 'SIGNED_OUT') {
