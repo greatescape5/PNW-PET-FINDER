@@ -1917,7 +1917,8 @@ async function login() {
     onLogin();
     closeModal('loginModal');
     showToast('Welcome back, ' + currentUser.firstName + '!');
-    await loadUserListings();
+    // Load user listings in background without blocking
+    loadUserListings().catch(e => console.log('loadUserListings error:', e));
 
   } catch(e) {
     if (loginBtn) { loginBtn.textContent = 'Log in'; loginBtn.disabled = false; }
@@ -2423,7 +2424,7 @@ function renderDash() {
   document.getElementById('dashHi').textContent = 'Welcome back, ' + currentUser.firstName + '!';
   document.getElementById('dashSub').textContent = 'Manage your listings, edit details, and track your posts.';
 
-  const mine = listings.filter(l => l.userId === currentUser.email);
+  const mine = listings.filter(l => l.userId === currentUser.id || l.userId === currentUser.email);
   const active = mine.filter(l => l.status === 'active');
   const expired = mine.filter(l => l.status === 'expired' || l.status === 'sold');
   const featured = mine.filter(l => l.plan === 'featured' && l.status === 'active');
@@ -2535,8 +2536,13 @@ async function loadUserListings() {
     if (error) throw error;
     if (data) {
       const mapped = data.map(mapRow);
-      listings = [...listings.filter(l => l.userId !== currentUser.id), ...mapped];
-      renderDash();
+      // Update listings array but don't force navigate to dashboard
+      listings = [...listings.filter(l => l.userId !== currentUser.id && l.userId !== currentUser.email), ...mapped];
+      // Only re-render dash if user is already on that page
+      const dashPage = document.getElementById('page-dashboard');
+      if (dashPage && dashPage.classList.contains('active')) {
+        renderDash();
+      }
     }
   } catch(e) { console.log('Could not load user listings:', e.message); }
 }
@@ -2621,8 +2627,9 @@ async function restoreSession() {
         lastName: profile?.last_name || meta.last_name || ''
       };
       onLogin();
-      await loadUserListings();
       console.log('Session restored for:', currentUser.firstName);
+      // Load listings in background
+      loadUserListings().catch(e => console.log('loadUserListings error:', e));
     }
   } catch(e) {
     console.log('Session restore failed:', e.message);
@@ -2654,7 +2661,8 @@ sb.auth.onAuthStateChange(async (event, session) => {
         lastName: profile?.last_name || meta.last_name || ''
       };
       onLogin();
-      await loadUserListings();
+      // Load listings in background
+      loadUserListings().catch(e => console.log('loadUserListings error:', e));
     }
   } else if (event === 'SIGNED_OUT') {
     currentUser = null;
