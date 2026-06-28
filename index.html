@@ -1586,7 +1586,7 @@
     <div class="fg"><label class="fl">Email</label><input class="fi" id="liEmail" type="email" placeholder="your@email.com" autocomplete="email"></div>
     <div class="fg"><label class="fl">Password</label><input class="fi" id="liPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
     <div id="loginAlert" style="min-height:0"></div>
-    <button class="btn btn-navy btn-full" onclick="login()" style="margin-top:6px">Log in</button>
+    <button class="btn btn-navy btn-full" id="loginSubmitBtn" onclick="login()" style="margin-top:6px">Log in</button>
     <div class="f-divider"><span>or</span></div>
     <div class="f-foot">Don't have an account? <a class="f-link" onclick="switchModal('loginModal','signupModal')">Sign up free</a></div>
   </div>
@@ -1879,24 +1879,51 @@ async function login() {
   const al = document.getElementById('loginAlert');
   if (!email || !pass) { al.innerHTML = '<div class="alert alert-err">Please fill in all fields.</div>'; return; }
 
-  const loginBtn = al.nextElementSibling;
+  const loginBtn = document.getElementById('loginSubmitBtn');
   if (loginBtn) { loginBtn.textContent = 'Logging in…'; loginBtn.disabled = true; }
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
 
-  if (loginBtn) { loginBtn.textContent = 'Log in'; loginBtn.disabled = false; }
+    if (loginBtn) { loginBtn.textContent = 'Log in'; loginBtn.disabled = false; }
 
-  if (error) {
-    al.innerHTML = '<div class="alert alert-err">Invalid email or password.</div>';
-    return;
+    if (error) {
+      console.error('Login error:', error);
+      al.innerHTML = '<div class="alert alert-err">Invalid email or password. Please try again.</div>';
+      document.getElementById('liPass').value = '';
+      return;
+    }
+
+    // Get or create profile
+    let { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+    if (!profile) {
+      await sb.from('profiles').upsert({
+        id: data.user.id,
+        email: email,
+        first_name: email.split('@')[0],
+        last_name: ''
+      }, { onConflict: 'id' });
+      profile = { first_name: email.split('@')[0], last_name: '' };
+    }
+
+    currentUser = {
+      id: data.user.id,
+      email,
+      firstName: profile?.first_name || email.split('@')[0],
+      lastName: profile?.last_name || ''
+    };
+
+    al.innerHTML = '';
+    onLogin();
+    closeModal('loginModal');
+    showToast('Welcome back, ' + currentUser.firstName + '!');
+    await loadUserListings();
+
+  } catch(e) {
+    if (loginBtn) { loginBtn.textContent = 'Log in'; loginBtn.disabled = false; }
+    console.error('Login exception:', e);
+    al.innerHTML = '<div class="alert alert-err">Login failed. Please try again.</div>';
   }
-
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
-  currentUser = { id: data.user.id, email, firstName: profile?.first_name || email.split('@')[0], lastName: profile?.last_name || '' };
-  onLogin();
-  closeModal('loginModal');
-  showToast('Welcome back, ' + currentUser.firstName + '!');
-  await loadUserListings();
 }
 
 async function signup() {
@@ -2565,14 +2592,19 @@ async function deleteListingFromSupabase(id) {
 
 async function restoreSession() {
   try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      // Ensure profile exists — create it if missing
-      let { data: profile, error: profileErr } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+    // Small delay to ensure Supabase SDK has fully initialized
+    await new Promise(r => setTimeout(r, 100));
 
-      if (profileErr || !profile) {
-        // Profile missing — create it now
-        const meta = session.user.user_metadata || {};
+    const { data: { session }, error: sessionErr } = await sb.auth.getSession();
+    console.log('Session check:', session ? 'Found session for ' + session.user.email : 'No session', sessionErr?.message || '');
+
+    if (session && session.user) {
+      const meta = session.user.user_metadata || {};
+
+      // Get or create profile
+      let { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+
+      if (!profile) {
         const { data: newProfile } = await sb.from('profiles').upsert({
           id: session.user.id,
           email: session.user.email,
@@ -2585,28 +2617,45 @@ async function restoreSession() {
       currentUser = {
         id: session.user.id,
         email: session.user.email,
-        firstName: profile?.first_name || session.user.email.split('@')[0],
-        lastName: profile?.last_name || ''
+        firstName: profile?.first_name || meta.first_name || session.user.email.split('@')[0],
+        lastName: profile?.last_name || meta.last_name || ''
       };
       onLogin();
       await loadUserListings();
+      console.log('Session restored for:', currentUser.firstName);
     }
-  } catch(e) { console.log('Session restore failed:', e.message); }
+  } catch(e) {
+    console.log('Session restore failed:', e.message);
+  }
   await loadPublicListings();
 }
 
 // Listen for auth state changes (keeps user logged in across page loads)
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' && session && !currentUser) {
-    const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-    currentUser = {
-      id: session.user.id,
-      email: session.user.email,
-      firstName: profile?.first_name || session.user.email.split('@')[0],
-      lastName: profile?.last_name || ''
-    };
-    onLogin();
-    await loadUserListings();
+  console.log('Auth event:', event, session?.user?.email || 'no user');
+
+  if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && session && session.user) {
+    if (!currentUser || currentUser.id !== session.user.id) {
+      const meta = session.user.user_metadata || {};
+      let { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+      if (!profile) {
+        const { data: np } = await sb.from('profiles').upsert({
+          id: session.user.id,
+          email: session.user.email,
+          first_name: meta.first_name || session.user.email.split('@')[0],
+          last_name: meta.last_name || ''
+        }, { onConflict: 'id' }).select().single();
+        profile = np;
+      }
+      currentUser = {
+        id: session.user.id,
+        email: session.user.email,
+        firstName: profile?.first_name || meta.first_name || session.user.email.split('@')[0],
+        lastName: profile?.last_name || meta.last_name || ''
+      };
+      onLogin();
+      await loadUserListings();
+    }
   } else if (event === 'SIGNED_OUT') {
     currentUser = null;
     document.getElementById('dashNavLink').style.display = 'none';
