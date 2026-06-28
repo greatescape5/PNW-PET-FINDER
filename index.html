@@ -1895,7 +1895,6 @@ async function login() {
   btn.disabled = true;
 
   try {
-    // Use fetch directly — bypasses any SDK initialization issues
     const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
       method: 'POST',
       headers: {
@@ -1906,34 +1905,37 @@ async function login() {
     });
 
     const result = await res.json();
-    console.log('Login response status:', res.status);
+    console.log('Login status:', res.status, 'Result:', JSON.stringify(result).substring(0, 200));
 
     btn.textContent = 'Log in';
     btn.disabled = false;
 
-    if (!res.ok || result.error) {
-      const msg = result.error_description || result.msg || result.error || 'Incorrect email or password.';
-      al.innerHTML = '<div class="alert alert-err">' + msg + '</div>';
-      document.getElementById('liPass').value = '';
+    if (!res.ok || result.error || result.error_code) {
+      const msg = result.error_description || result.msg || result.message || result.error || 'Incorrect email or password.';
+      al.innerHTML = '<div class="alert alert-err" style="display:block!important">' + msg + '</div>';
       return;
     }
 
-    // Store session token for future requests
-    const user = result.user;
-    const accessToken = result.access_token;
-    sessionStorage.setItem('pnw_token', accessToken);
-    sessionStorage.setItem('pnw_refresh', result.refresh_token || '');
-    sessionStorage.setItem('pnw_user', JSON.stringify(user));
+    if (!result.access_token) {
+      al.innerHTML = '<div class="alert alert-err" style="display:block!important">Login failed — no token returned. Status: ' + res.status + '</div>';
+      return;
+    }
 
-    // Also set in Supabase SDK if available
-    if (sb && sb.auth && result.access_token) {
+    const user = result.user;
+
+    // Set session in SDK
+    if (sb) {
       try {
         await sb.auth.setSession({
           access_token: result.access_token,
-          refresh_token: result.refresh_token
+          refresh_token: result.refresh_token || ''
         });
-      } catch(e) { console.log('SDK session set failed, using manual token'); }
+      } catch(e) { console.log('setSession note:', e.message); }
     }
+
+    // Store in sessionStorage as backup
+    sessionStorage.setItem('pnw_token', result.access_token);
+    sessionStorage.setItem('pnw_user', JSON.stringify(user));
 
     currentUser = {
       id: user.id,
@@ -1949,8 +1951,8 @@ async function login() {
   } catch(e) {
     btn.textContent = 'Log in';
     btn.disabled = false;
-    console.error('Login error:', e);
-    al.innerHTML = '<div class="alert alert-err">Connection error. Please check your internet and try again.</div>';
+    console.error('Login fetch error:', e);
+    al.innerHTML = '<div class="alert alert-err" style="display:block!important">Error: ' + e.message + '</div>';
   }
 }
 
