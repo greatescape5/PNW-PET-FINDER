@@ -2102,43 +2102,57 @@ function filterListings() {
 }
 
 function openDetail(id) {
-  const l = listings.find(x => x.id === id);
-  if (!l) return;
-  window._currentDetailId = id;
-  // Reset contact form
-  ['cBuyerName','cBuyerEmail','cBuyerPhone','cMessage'].forEach(f => { const el=document.getElementById(f); if(el) el.value=''; });
-  const cfw = document.getElementById('contactFormWrap');
-  const cs = document.getElementById('contactSuccess');
-  if (cfw) cfw.style.display = 'block';
-  if (cs) cs.style.display = 'none';
-  const ca = document.getElementById('contactAlert');
-  if (ca) ca.innerHTML = '';
+  try {
+    const l = listings.find(x => x.id === id);
+    if (!l) { console.error('Listing not found:', id); return; }
+    window._currentDetailId = id;
 
-  document.getElementById('dMainImg').src = l.photo || '';
-  document.getElementById('dMainImg').alt = l.breed;
-  document.getElementById('dTitle').textContent = l.title;
-  document.getElementById('dPrice').textContent = l.price > 0 ? '$' + l.price.toLocaleString() : 'Free / Rehoming Fee';
-  document.getElementById('dDesc').textContent = l.desc;
+    // Reset contact form safely
+    ['cBuyerName','cBuyerEmail','cBuyerPhone','cMessage'].forEach(fid => {
+      const el = document.getElementById(fid);
+      if (el) el.value = '';
+    });
+    const cfw = document.getElementById('contactFormWrap');
+    const cs  = document.getElementById('contactSuccess');
+    const ca  = document.getElementById('contactAlert');
+    if (cfw) cfw.style.display = 'block';
+    if (cs)  cs.style.display  = 'none';
+    if (ca)  ca.innerHTML = '';
 
-  document.getElementById('dThumbs').innerHTML = (l.photos||[]).map((p,i) =>
-    `<img src="${p}" class="detail-thumb${i===0?' on':''}" onclick="swapPhoto('${p}',this)" alt="Photo ${i+1}">`
-  ).join('');
+    // Handle photo - could be string URL or object
+    const mainPhoto = document.getElementById('dMainImg');
+    const photoUrl = typeof l.photo === 'object' && l.photo !== null ? l.photo.url : (l.photo || '');
+    if (mainPhoto) { mainPhoto.src = photoUrl; mainPhoto.alt = l.breed || ''; }
 
-  document.getElementById('dTags').innerHTML = [
-    `<span class="dtag">🐾 ${l.species}</span>`,
-    `<span class="dtag">🐕 ${l.breed}</span>`,
-    l.age ? `<span class="dtag">📅 ${l.age}</span>` : '',
-    `<span class="dtag">📍 ${l.location}</span>`,
-    l.plan==='featured' ? `<span class="dtag" style="border-color:var(--gold);color:#744210">⭐ Featured</span>` : ''
-  ].join('');
+    const titleEl = document.getElementById('dTitle');
+    const priceEl = document.getElementById('dPrice');
+    const descEl  = document.getElementById('dDesc');
+    if (titleEl) titleEl.textContent = l.title || '';
+    if (priceEl) priceEl.textContent = l.price > 0 ? '$' + Number(l.price).toLocaleString() : 'Free / Rehoming Fee';
+    if (descEl)  descEl.textContent  = l.desc || '';
 
-  document.getElementById('dSeller').innerHTML = [
-    l.contact.phone ? `<div class="seller-row"><div class="seller-icon">📞</div>${l.contact.phone}</div>` : '',
-    l.contact.email ? `<div class="seller-row"><div class="seller-icon">✉️</div>${l.contact.email}</div>` : '',
-    `<div class="seller-row"><div class="seller-icon">📍</div>${l.location}</div>`
-  ].join('');
+    // Thumbnails - handle both string and object photo formats
+    const photos = (l.photos || []).map(p => typeof p === 'object' && p !== null ? p.url : p).filter(Boolean);
+    if (photoUrl && !photos.includes(photoUrl)) photos.unshift(photoUrl);
+    const thumbsEl = document.getElementById('dThumbs');
+    if (thumbsEl) {
+      thumbsEl.innerHTML = photos.map((p, i) =>
+        `<img src="${p}" class="detail-thumb${i===0?' on':''}" onclick="swapPhoto('${p}',this)" alt="Photo ${i+1}">`
+      ).join('');
+    }
 
-  showPage('detail');
+    const tagsEl = document.getElementById('dTags');
+    if (tagsEl) tagsEl.innerHTML = [
+      `<span class="dtag">🐾 ${l.species||''}</span>`,
+      `<span class="dtag">🐕 ${l.breed||''}</span>`,
+      l.age ? `<span class="dtag">📅 ${l.age}</span>` : '',
+      `<span class="dtag">📍 ${l.location||''}</span>`,
+      l.plan==='featured' ? `<span class="dtag" style="border-color:var(--gold);color:#744210">⭐ Featured</span>` : ''
+    ].join('');
+
+    window._currentListingContact = l.contact;
+    showPage('detail');
+  } catch(e) { console.error('openDetail error:', e); }
 }
 
 function swapPhoto(src, el) {
@@ -3209,38 +3223,52 @@ function renderAdminUsers() {
   }).join('');
 }
 
-async function adminSetStatus(id, status) {
+async function adminPatch(id, updates) {
   const token = localStorage.getItem('pnw_token');
-  if (!token) return;
-  const updates = { status };
-  if (status === 'active') updates.posted_date = new Date().toISOString().split('T')[0];
-  await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id, {
+  if (!token) return false;
+  const res = await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_ANON_KEY,
-      'Authorization': 'Bearer ' + token
+      'Authorization': 'Bearer ' + token,
+      'Prefer': 'return=minimal'
     },
     body: JSON.stringify(updates)
   });
-  showToast('Listing updated to ' + status);
-  await loadAdminData();
+  console.log('Admin patch', id, res.status, updates);
+  return res.ok;
+}
+
+async function adminSetStatus(id, status) {
+  const updates = { status };
+  if (status === 'active') updates.posted_date = new Date().toISOString().split('T')[0];
+  const ok = await adminPatch(id, updates);
+  if (ok) {
+    showToast('Listing updated to ' + status);
+    // Update local data too
+    if (window._adminListings) {
+      const l = window._adminListings.find(x => x.id === id);
+      if (l) { l.status = status; if (status === 'active') l.posted_date = updates.posted_date; }
+    }
+    await loadAdminData();
+  } else {
+    showToast('Update failed — check RLS policies');
+  }
 }
 
 async function adminFeature(id) {
-  const token = localStorage.getItem('pnw_token');
-  if (!token) return;
-  await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': 'Bearer ' + token
-    },
-    body: JSON.stringify({ plan: 'featured', featured: true })
-  });
-  showToast('Listing featured!');
-  await loadAdminData();
+  const ok = await adminPatch(id, { plan: 'featured', featured: true, status: 'active' });
+  if (ok) {
+    showToast('Listing featured!');
+    if (window._adminListings) {
+      const l = window._adminListings.find(x => x.id === id);
+      if (l) { l.plan = 'featured'; l.featured = true; }
+    }
+    await loadAdminData();
+  } else {
+    showToast('Feature failed — check RLS policies');
+  }
 }
 
 async function adminDelete(id) {
