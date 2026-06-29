@@ -1528,13 +1528,25 @@
       </div>
       <div>
         <div class="seller-box">
-          <h3>Seller Information</h3>
-          <p>Contact the seller for more info now!</p>
-          <div id="dSeller"></div>
+          <h3>Contact Seller</h3>
+          <p>Send a message — your inquiry goes directly to the seller.</p>
+          <div id="contactFormWrap">
+            <div class="fg" style="margin-bottom:10px"><label class="fl">Your Name *</label><input class="fi" id="cBuyerName" placeholder="Full name"></div>
+            <div class="fg" style="margin-bottom:10px"><label class="fl">Your Email *</label><input class="fi" id="cBuyerEmail" type="email" placeholder="your@email.com"></div>
+            <div class="fg" style="margin-bottom:10px"><label class="fl">Your Phone</label><input class="fi" id="cBuyerPhone" placeholder="(optional)"></div>
+            <div class="fg" style="margin-bottom:14px"><label class="fl">Message *</label><textarea class="fi" id="cMessage" placeholder="Hi, I'm interested in your listing..." style="min-height:80px"></textarea></div>
+            <div id="contactAlert"></div>
+            <button class="btn btn-navy btn-full" id="contactSendBtn" onclick="sendContactForm()">Send Message</button>
+            <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px">🔒 Your message goes directly to the seller. Their contact info stays private.</p>
+          </div>
+          <div id="contactSuccess" style="display:none;text-align:center;padding:20px">
+            <div style="font-size:36px;margin-bottom:10px">✅</div>
+            <p style="font-weight:700;color:var(--navy)">Message sent!</p>
+            <p style="font-size:13px;color:var(--text-muted)">The seller will reply to your email directly.</p>
+          </div>
           <div class="share-row">
             <button class="share-b" onclick="copyLink()">🔗 Copy Link</button>
             <button class="share-b" onclick="showToast('Share on Facebook!')">📘 Facebook</button>
-            <button class="share-b" onclick="showToast('Share on X!')">✕ X</button>
           </div>
         </div>
       </div>
@@ -1580,12 +1592,19 @@
     </div>
 
     <div class="lf-section">
-      <h2>Photos</h2>
+      <h2>Photos & Videos</h2>
       <div class="photo-drop" id="photoDrop" onclick="document.getElementById('photoIn').click()" ondragover="dOver(event)" ondrop="dDrop(event)">
         <div class="photo-drop-icon">📸</div>
-        <div class="photo-drop-text"><strong>Click to upload</strong> or drag & drop · Up to 10 photos · JPG, PNG</div>
+        <div class="photo-drop-text"><strong>Click to upload</strong> or drag & drop</div>
+        <div class="photo-drop-text" style="margin-top:4px;font-size:12px">Up to 10 files · Photos (JPG, PNG, WEBP) or Videos (MP4, MOV)</div>
       </div>
-      <input type="file" id="photoIn" multiple accept="image/*" style="display:none" onchange="photoSel(event)">
+      <input type="file" id="photoIn" multiple accept="image/*,video/*" style="display:none" onchange="photoSel(event)">
+      <div id="uploadProgress" style="display:none;margin-top:12px">
+        <div style="background:var(--gray-light);border-radius:4px;height:6px;overflow:hidden">
+          <div id="uploadBar" style="background:var(--gold);height:100%;width:0%;transition:width 0.3s"></div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:6px;text-align:center" id="uploadStatus">Uploading...</p>
+      </div>
       <div class="photo-grid" id="photoGrid"></div>
     </div>
 
@@ -1897,6 +1916,49 @@
 
 <script>
 // ── SUPABASE ───────────────────────────────────────────────────────────────
+// ── CLOUDINARY ─────────────────────────────────────────────────────────────
+const CLOUDINARY_CLOUD = 'dt33kmmkn';
+const CLOUDINARY_PRESET = 'pnwpetfinder';
+const CLOUDINARY_UPLOAD_URL = 'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/auto/upload';
+
+// ── EMAIL (via Vercel API — key is server-side only) ───────────────────────
+const ADMIN_EMAIL = 'tyler@greatescapewebservices.com';
+
+async function sendEmail(type, data) {
+  try {
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, data })
+    });
+    const result = await res.json();
+    console.log('Email API response:', res.status, result);
+    return res.ok;
+  } catch(e) {
+    console.error('Email error:', e.message);
+    return false;
+  }
+}
+
+function emailListingConfirmation(listing, sellerEmail, sellerName) {
+  return sendEmail('confirmation', { listing, sellerEmail, sellerName });
+}
+
+function emailInquiry(sellerEmail, sellerName, listingTitle, buyerName, buyerEmail, buyerPhone, message) {
+  return sendEmail('inquiry', { sellerEmail, sellerName, listingTitle, buyerName, buyerEmail, buyerPhone, message });
+}
+
+
+function emailExpiryWarning(sellerEmail, sellerName, listingTitle, daysLeft) {
+  return sendEmail('expiry-warning', { sellerEmail, sellerName, listingTitle, daysLeft });
+}
+
+
+function emailRelistPrompt(sellerEmail, sellerName, listingTitle) {
+  return sendEmail('expiry-relist', { sellerEmail, sellerName, listingTitle });
+}
+
+
 // ── STRIPE PAYMENT LINKS ───────────────────────────────────────────────────
 // Create Payment Links in Stripe Dashboard → Payment Links → + New
 // Set success URL to: https://yoursite.com?payment=success&listing={CHECKOUT_SESSION_ID}
@@ -2042,6 +2104,15 @@ function filterListings() {
 function openDetail(id) {
   const l = listings.find(x => x.id === id);
   if (!l) return;
+  window._currentDetailId = id;
+  // Reset contact form
+  ['cBuyerName','cBuyerEmail','cBuyerPhone','cMessage'].forEach(f => { const el=document.getElementById(f); if(el) el.value=''; });
+  const cfw = document.getElementById('contactFormWrap');
+  const cs = document.getElementById('contactSuccess');
+  if (cfw) cfw.style.display = 'block';
+  if (cs) cs.style.display = 'none';
+  const ca = document.getElementById('contactAlert');
+  if (ca) ca.innerHTML = '';
 
   document.getElementById('dMainImg').src = l.photo || '';
   document.getElementById('dMainImg').alt = l.breed;
@@ -2258,29 +2329,77 @@ function selPlan(p) {
   document.getElementById('po-'+p).classList.add(p==='featured'?'sel-feat':'sel');
 }
 
-function photoSel(e) { addPhotos(Array.from(e.target.files)); }
+function photoSel(e) { uploadToCloudinary(Array.from(e.target.files)); }
 function dOver(e) { e.preventDefault(); document.getElementById('photoDrop').classList.add('drag'); }
 function dDrop(e) {
   e.preventDefault();
   document.getElementById('photoDrop').classList.remove('drag');
-  addPhotos(Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')));
+  uploadToCloudinary(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/')));
 }
 
-function addPhotos(files) {
-  files.slice(0, 10 - photos.length).forEach(f => {
-    const r = new FileReader();
-    r.onload = ev => { photos.push(ev.target.result); renderPhotos(); };
-    r.readAsDataURL(f);
-  });
+async function uploadToCloudinary(files) {
+  if (!files.length) return;
+  const remaining = 10 - photos.length;
+  if (remaining <= 0) { showToast('Maximum 10 files reached.'); return; }
+  const toUpload = files.slice(0, remaining);
+
+  const progressWrap = document.getElementById('uploadProgress');
+  const progressBar = document.getElementById('uploadBar');
+  const progressStatus = document.getElementById('uploadStatus');
+  progressWrap.style.display = 'block';
+
+  let completed = 0;
+  for (const file of toUpload) {
+    progressStatus.textContent = 'Uploading ' + (completed + 1) + ' of ' + toUpload.length + '...';
+    progressBar.style.width = Math.round((completed / toUpload.length) * 100) + '%';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+      formData.append('folder', 'pnwpetfinder');
+
+      const res = await fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.secure_url) {
+        photos.push({
+          url: data.secure_url,
+          publicId: data.public_id,
+          type: data.resource_type // 'image' or 'video'
+        });
+        renderPhotos();
+      } else {
+        console.error('Upload failed:', data);
+        showToast('Upload failed for ' + file.name);
+      }
+    } catch(e) {
+      console.error('Upload error:', e);
+      showToast('Upload error: ' + e.message);
+    }
+    completed++;
+  }
+
+  progressBar.style.width = '100%';
+  progressStatus.textContent = completed + ' file' + (completed !== 1 ? 's' : '') + ' uploaded!';
+  setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 2000);
+  document.getElementById('photoIn').value = '';
 }
 
 function renderPhotos() {
-  document.getElementById('photoGrid').innerHTML = photos.map((s,i) =>
-    `<div class="photo-thumb-wrap"><img src="${s}" alt="Photo ${i+1}"><button class="photo-rm" onclick="rmPhoto(${i})">×</button></div>`
-  ).join('');
+  document.getElementById('photoGrid').innerHTML = photos.map((p, i) => {
+    const src = typeof p === 'string' ? p : p.url;
+    const isVideo = typeof p === 'object' && p.type === 'video';
+    return `<div class="photo-thumb-wrap">
+      ${isVideo
+        ? `<video src="${src}" style="width:100%;height:100%;object-fit:cover" muted></video>`
+        : `<img src="${src}" alt="Photo ${i+1}">`}
+      <button class="photo-rm" onclick="rmPhoto(${i})">×</button>
+    </div>`;
+  }).join('');
 }
 
-function rmPhoto(i) { photos.splice(i,1); renderPhotos(); }
+function rmPhoto(i) { photos.splice(i, 1); renderPhotos(); }
 
 function getState(loc) {
   const l = loc.toLowerCase();
@@ -2330,7 +2449,8 @@ function submitListing() {
     desc,
     contact: { name: seller, phone: document.getElementById('pPhone').value, email },
     plan: selectedPlan, status: 'pending',
-    photo: photos[0]||'', photos: [...photos],
+    photo: photos[0] ? (typeof photos[0]==='string' ? photos[0] : photos[0].url) : '',
+    photos: photos.map(p => typeof p === 'string' ? p : p.url),
     userId: currentUser.id,
     postedDate: new Date().toISOString().split('T')[0],
     expiryDate: expiry(PLANS[selectedPlan].days)
@@ -2512,6 +2632,13 @@ async function handlePaymentReturn() {
           localStorage.removeItem('pendingListingData');
           await loadUserListings();
           resetForm();
+          // Send confirmation email
+          if (currentUser) {
+            const confirmedListing = listings.find(l => l.id === listingId) || pendingListing;
+            if (confirmedListing && currentUser.email) {
+              emailListingConfirmation(confirmedListing, currentUser.email, currentUser.firstName).catch(e => console.log('Confirmation email error:', e));
+            }
+          }
         } else if (attempts < 10) {
           setTimeout(tryActivate, 500);
         } else {
@@ -2539,6 +2666,7 @@ function resetForm() {
   if (pSpecies) pSpecies.selectedIndex = 0;
   photos = []; selectedPlan = null; pendingListing = null;
   renderPhotos();
+  document.getElementById('photoIn').value = '';
   document.querySelectorAll('.plan-opt').forEach(el => el.classList.remove('sel','sel-feat'));
   document.getElementById('lfAlert').innerHTML = '';
 }
@@ -3125,6 +3253,48 @@ async function adminDelete(id) {
   });
   showToast('Listing deleted.');
   await loadAdminData();
+}
+
+
+async function sendContactForm() {
+  const listingId = window._currentDetailId;
+  const listing = listings.find(l => l.id === listingId);
+  if (!listing) return;
+
+  const buyerName  = document.getElementById('cBuyerName').value.trim();
+  const buyerEmail = document.getElementById('cBuyerEmail').value.trim();
+  const buyerPhone = document.getElementById('cBuyerPhone').value.trim();
+  const message    = document.getElementById('cMessage').value.trim();
+  const alertEl    = document.getElementById('contactAlert');
+  const btn        = document.getElementById('contactSendBtn');
+
+  alertEl.innerHTML = '';
+  if (!buyerName || !buyerEmail || !message) {
+    alertEl.innerHTML = '<div class="alert alert-err">Please fill in your name, email, and message.</div>';
+    return;
+  }
+
+  btn.textContent = 'Sending…'; btn.disabled = true;
+
+  const sellerEmail = listing.contact?.email || '';
+  const sellerName  = listing.contact?.name  || 'Seller';
+
+  if (!sellerEmail) {
+    alertEl.innerHTML = '<div class="alert alert-err">Unable to contact seller — no email on file.</div>';
+    btn.textContent = 'Send Message'; btn.disabled = false;
+    return;
+  }
+
+  const ok = await emailInquiry(sellerEmail, sellerName, listing.title, buyerName, buyerEmail, buyerPhone, message);
+
+  btn.textContent = 'Send Message'; btn.disabled = false;
+
+  if (ok) {
+    document.getElementById('contactFormWrap').style.display = 'none';
+    document.getElementById('contactSuccess').style.display = 'block';
+  } else {
+    alertEl.innerHTML = '<div class="alert alert-err">Failed to send. Please try again.</div>';
+  }
 }
 
 // ── BLOG DATA ──────────────────────────────────────────────────────────────
