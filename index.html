@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-RP2V7JHS9Y"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-RP2V7JHS9Y');
+  </script>
+
   <!-- ── PRIMARY SEO ── -->
   <title>PNW Pet Finder — Find & Rehome Pets in Washington, Idaho & Oregon</title>
   <meta name="description" content="PNW Pet Finder is the Pacific Northwest's pet directory. Browse dogs, puppies, cats, and more for adoption or sale in Washington, Idaho, and Oregon. List your pet for just $6.99.">
@@ -2552,6 +2561,14 @@ function showPage(p) {
     admin: 'Admin — PNW Pet Finder'
   };
   if (titles[p]) document.title = titles[p];
+
+  // Google Analytics: track this virtual page view
+  if (typeof gtag === 'function') {
+    gtag('event', 'page_view', {
+      page_title: titles[p] || document.title,
+      page_path: '/' + p
+    });
+  }
 }
 
 // ── RENDER CARDS ───────────────────────────────────────────────────────────
