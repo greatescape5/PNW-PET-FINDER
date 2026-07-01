@@ -3,10 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="PNW Pet Finder — Find, adopt, and rehome pets across the Pacific Northwest. Browse dogs, puppies, cats and more listed in Washington, Idaho, and Oregon.">
+
+  <!-- ── PRIMARY SEO ── -->
+  <title>PNW Pet Finder — Find & Rehome Pets in Washington, Idaho & Oregon</title>
+  <meta name="description" content="PNW Pet Finder is the Pacific Northwest's pet directory. Browse dogs, puppies, cats, and more for adoption or sale in Washington, Idaho, and Oregon. List your pet for just $6.99.">
+  <meta name="keywords" content="pets for adoption, pets for sale, Pacific Northwest pets, dogs for sale Washington, puppies Idaho, cats Oregon, pet rehoming, adopt a pet PNW, dog listings Spokane, puppies Tacoma, pet classifieds Northwest">
+  <meta name="author" content="Great Escape Web & Business Services LLC">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://www.pnwpetfinder.com/">
+
+  <!-- ── OPEN GRAPH (Facebook, LinkedIn) ── -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.pnwpetfinder.com/">
   <meta property="og:title" content="PNW Pet Finder — Pacific Northwest Pet Directory">
-  <meta property="og:description" content="Find, adopt, and rehome pets across Washington, Idaho, and Oregon.">
-  <title>PNW Pet Finder — Find & Rehome Pets in the Pacific Northwest</title>
+  <meta property="og:description" content="Find, adopt, and rehome pets across Washington, Idaho, and Oregon. Browse dogs, puppies, cats and more. List your pet for just $6.99.">
+  <meta property="og:image" content="https://www.pnwpetfinder.com/og-image.jpg">
+  <meta property="og:site_name" content="PNW Pet Finder">
+  <meta property="og:locale" content="en_US">
+
+  <!-- ── TWITTER CARD ── -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PNW Pet Finder — Pacific Northwest Pet Directory">
+  <meta name="twitter:description" content="Find, adopt, and rehome pets across Washington, Idaho, and Oregon.">
+  <meta name="twitter:image" content="https://www.pnwpetfinder.com/og-image.jpg">
+
+  <!-- ── FAVICON ── -->
+  <link rel="icon" type="image/png" href="https://www.pnwpetfinder.com/favicon.png">
+
+  <!-- ── STRUCTURED DATA (schema.org) ── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "PNW Pet Finder",
+    "url": "https://www.pnwpetfinder.com/",
+    "description": "Pacific Northwest pet directory for finding, adopting, and rehoming pets in Washington, Idaho, and Oregon.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://www.pnwpetfinder.com/?search={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "PNW Pet Finder",
+    "legalName": "Great Escape Web & Business Services LLC",
+    "url": "https://www.pnwpetfinder.com/",
+    "logo": "https://www.pnwpetfinder.com/favicon.png",
+    "areaServed": ["Washington", "Idaho", "Oregon"],
+    "description": "A pet listing directory serving the Pacific Northwest."
+  }
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2488,6 +2539,19 @@ function showPage(p) {
   if (p === 'listings') renderAll();
   if (p === 'dashboard') renderDash();
   if (p === 'admin') { if (isAdmin()) loadAdminData(); else showPage('home'); }
+
+  // Update page title for SEO and browser tab
+  const titles = {
+    home: 'PNW Pet Finder — Find & Rehome Pets in Washington, Idaho & Oregon',
+    listings: 'Browse Pets for Adoption & Sale — PNW Pet Finder',
+    'post-listing': 'List Your Pet for $6.99 — PNW Pet Finder',
+    dashboard: 'My Listings — PNW Pet Finder',
+    contact: 'Contact Us — PNW Pet Finder',
+    terms: 'Terms of Service — PNW Pet Finder',
+    blog: 'Pet Care Guides — PNW Pet Finder',
+    admin: 'Admin — PNW Pet Finder'
+  };
+  if (titles[p]) document.title = titles[p];
 }
 
 // ── RENDER CARDS ───────────────────────────────────────────────────────────
@@ -2615,6 +2679,15 @@ function openDetail(id) {
 
     window._currentListingContact = l.contact;
     showPage('detail');
+
+    // SEO: set title and description for this specific listing
+    const priceStr = l.price > 0 ? '$' + Number(l.price).toLocaleString() : 'Free / Rehoming';
+    document.title = `${l.title} — ${l.breed || l.species} in ${l.location || 'PNW'} | PNW Pet Finder`;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content',
+        `${l.title} — ${l.breed || ''} ${l.species || 'pet'} available in ${l.location || 'the Pacific Northwest'} for ${priceStr}. ${(l.desc || '').slice(0, 100)}`);
+    }
   } catch(e) { console.error('openDetail error:', e); }
 }
 
