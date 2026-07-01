@@ -1624,7 +1624,7 @@
         <option value="Idaho">Idaho</option>
         <option value="Oregon">Oregon</option>
       </select>
-      <button class="search-btn" onclick="showPage('listings')">Search</button>
+      <button class="search-btn" onclick="goToListingsSearch()">Search</button>
     </div>
   </div>
 
@@ -2072,6 +2072,9 @@
 
     <!-- LISTINGS PANEL -->
     <div class="admin-panel active" id="adminListingsPanel">
+      <div style="margin-bottom:14px">
+        <button class="btn btn-navy" onclick="openAdminCreate()" style="padding:10px 20px">+ Add New Listing</button>
+      </div>
       <div class="admin-filter-bar">
         <input class="admin-search" id="adminSearch" placeholder="Search title, email, location..." oninput="renderAdminListings()">
         <select class="admin-select" id="adminStatusFilter" onchange="renderAdminListings()">
@@ -2131,7 +2134,7 @@
 <!-- ── ADMIN EDIT MODAL ── -->
 <div class="admin-edit-overlay" id="adminEditOverlay">
   <div class="admin-edit-modal">
-    <h2>Edit Listing</h2>
+    <h2 id="aefModalTitle">Edit Listing</h2>
     <div class="sub">Make any changes below, then hit the green check to save or red X to cancel.</div>
     <input type="hidden" id="aefId">
     <div class="fg"><label class="fl">Listing Title</label><input class="fi" id="aefTitle"></div>
@@ -2580,9 +2583,29 @@ function renderHome() {
 
 function renderAll() { filterListings(); }
 
+// Carry the homepage search + state over to the All Listings page
+function goToListingsSearch() {
+  const homeQ = document.getElementById('homeSearch')?.value || '';
+  const homeSt = document.getElementById('homeState')?.value || '';
+  const allSearch = document.getElementById('allSearch');
+  const allState = document.getElementById('allState');
+  if (allSearch) allSearch.value = homeQ;
+  if (allState) allState.value = homeSt;
+  showPage('listings');
+}
+
 function filterListings() {
-  const q = (document.getElementById('allSearch') || document.getElementById('homeSearch'))?.value?.toLowerCase().trim() || '';
-  const st = document.getElementById('allState')?.value || document.getElementById('homeState')?.value || '';
+  // Determine which page is active so we read the correct search + state inputs
+  const onListings = document.getElementById('page-listings')?.classList.contains('active');
+
+  let q, st;
+  if (onListings) {
+    q  = document.getElementById('allSearch')?.value?.toLowerCase().trim() || '';
+    st = document.getElementById('allState')?.value ?? '';
+  } else {
+    q  = document.getElementById('homeSearch')?.value?.toLowerCase().trim() || '';
+    st = document.getElementById('homeState')?.value ?? '';
+  }
 
   const statusFilter = document.getElementById('allStatus')?.value || 'active';
   // Status dropdown removed — always show active listings on public pages
@@ -3945,6 +3968,7 @@ function openAdminEdit(id) {
   const l = (window._adminListings || []).find(x => x.id === id);
   if (!l) { showToast('Listing not found'); return; }
 
+  document.getElementById('aefModalTitle').textContent = 'Edit Listing';
   document.getElementById('aefId').value = l.id;
   document.getElementById('aefTitle').value = l.title || '';
   document.getElementById('aefSpecies').value = l.species || 'Dog';
@@ -4033,8 +4057,14 @@ async function saveAdminEdit() {
   const btn = document.getElementById('aefSaveBtn');
   const alertEl = document.getElementById('aefAlert');
 
-  const updates = {
-    title: document.getElementById('aefTitle').value.trim(),
+  const title = document.getElementById('aefTitle').value.trim();
+  if (!title) {
+    alertEl.innerHTML = '<div class="alert alert-err">Please enter a listing title.</div>';
+    return;
+  }
+
+  const fields = {
+    title,
     species: document.getElementById('aefSpecies').value,
     breed: document.getElementById('aefBreed').value.trim(),
     description: document.getElementById('aefDesc').value.trim(),
@@ -4055,16 +4085,71 @@ async function saveAdminEdit() {
   };
 
   btn.textContent = '…'; btn.disabled = true;
-  const ok = await adminPatch(id, updates);
+
+  let ok;
+  if (id) {
+    // Editing existing listing
+    ok = await adminPatch(id, fields);
+  } else {
+    // Creating new listing — assign to admin as owner
+    fields.user_id = currentUser.id;
+    ok = await adminCreate(fields);
+  }
+
   btn.textContent = '✓'; btn.disabled = false;
 
   if (ok) {
-    showToast('Listing updated!');
+    showToast(id ? 'Listing updated!' : 'Listing created!');
     closeAdminEdit();
     await loadAdminData();
   } else {
     alertEl.innerHTML = '<div class="alert alert-err">Save failed — check your connection and RLS policies.</div>';
   }
+}
+
+async function adminCreate(fields) {
+  const token = localStorage.getItem('pnw_token');
+  if (!token) return false;
+  const res = await fetch(SUPABASE_URL + '/rest/v1/listings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + token,
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(fields)
+  });
+  console.log('Admin create:', res.status);
+  return res.ok;
+}
+
+function openAdminCreate() {
+  // Clear the form and open the modal in "create" mode
+  document.getElementById('aefModalTitle').textContent = 'Add New Listing';
+  document.getElementById('aefId').value = '';
+  document.getElementById('aefTitle').value = '';
+  document.getElementById('aefSpecies').value = 'Dog';
+  document.getElementById('aefBreed').value = '';
+  document.getElementById('aefDesc').value = '';
+  document.getElementById('aefPrice').value = '';
+  document.getElementById('aefAge').value = '';
+  document.getElementById('aefState').value = 'Washington';
+  document.getElementById('aefLocation').value = '';
+  document.getElementById('aefContactName').value = '';
+  document.getElementById('aefContactPhone').value = '';
+  document.getElementById('aefContactEmail').value = '';
+  document.getElementById('aefPlan').value = 'standard';
+  document.getElementById('aefStatus').value = 'active';
+  // Default posted = today, expiry = +14 days
+  const today = new Date();
+  const expiry = new Date(Date.now() + 14*24*60*60*1000);
+  document.getElementById('aefPosted').value = today.toISOString().split('T')[0];
+  document.getElementById('aefExpiry').value = expiry.toISOString().split('T')[0];
+  document.getElementById('aefAlert').innerHTML = '';
+  aefPhotoList = [];
+  renderAefPhotos();
+  document.getElementById('adminEditOverlay').classList.add('active');
 }
 
 
