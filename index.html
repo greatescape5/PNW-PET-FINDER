@@ -113,22 +113,6 @@
 
     .nav-cta:hover { background: var(--navy); color: white; }
 
-    .nav-icon-btn {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      border: none;
-      background: none;
-      cursor: pointer;
-      color: var(--text-mid);
-      transition: background 0.15s;
-    }
-
-    .nav-icon-btn:hover { background: var(--gray-bg); }
-
     /* ── PAGES ── */
     .page { display: none; }
     .page.active { display: block; }
@@ -1300,6 +1284,53 @@
     .admin-btn-delete:hover { background: #fecaca; }
     .admin-btn-feature { background: var(--gold-pale); color: #744210; }
     .admin-btn-feature:hover { background: #fde68a; }
+    .admin-btn-edit { background: #e0e7ff; color: #3730a3; }
+    .admin-btn-edit:hover { background: #c7d2fe; }
+
+    /* Admin Edit Modal */
+    .admin-edit-overlay {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: rgba(26,42,58,0.55); backdrop-filter: blur(3px);
+      align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto;
+    }
+    .admin-edit-overlay.active { display: flex; }
+    .admin-edit-modal {
+      background: white; border-radius: var(--radius); max-width: 620px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 28px; margin: auto;
+    }
+    .admin-edit-modal h2 {
+      font-family: 'Playfair Display', Georgia, serif; font-size: 22px;
+      color: var(--navy); margin-bottom: 4px;
+    }
+    .admin-edit-modal .sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+    .aef-row { display: flex; gap: 12px; }
+    .aef-row .fg { flex: 1; }
+    .aef-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .aef-photo-thumb {
+      position: relative; width: 72px; height: 72px; border-radius: 6px; overflow: hidden;
+      border: 1px solid var(--gray-light);
+    }
+    .aef-photo-thumb img, .aef-photo-thumb video { width: 100%; height: 100%; object-fit: cover; }
+    .aef-photo-rm {
+      position: absolute; top: 2px; right: 2px; background: rgba(220,38,38,0.9); color: white;
+      border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 12px;
+      cursor: pointer; line-height: 1; display: flex; align-items: center; justify-content: center;
+    }
+    .aef-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+    .aef-save {
+      background: #16a34a; color: white; border: none; border-radius: 8px;
+      width: 48px; height: 44px; font-size: 20px; cursor: pointer; transition: all 0.15s;
+    }
+    .aef-save:hover { background: #15803d; }
+    .aef-cancel {
+      background: #ef4444; color: white; border: none; border-radius: 8px;
+      width: 48px; height: 44px; font-size: 20px; cursor: pointer; transition: all 0.15s;
+    }
+    .aef-cancel:hover { background: #dc2626; }
+    .aef-uploadbtn {
+      display: inline-block; background: var(--gold-pale); color: #744210; border: 1px dashed var(--gold);
+      border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; margin-top: 8px;
+    }
 
     .admin-count {
       font-size: 12px; color: var(--text-muted); margin-bottom: 10px;
@@ -1329,9 +1360,6 @@
     </div>
     <button class="nav-link" id="dashNavLink" style="display:none" onclick="showPage('dashboard')">My Listings</button>
     <button class="nav-link" id="adminNavLink" style="display:none" onclick="showPage('admin')">⚙️ Admin</button>
-    <button class="nav-icon-btn" title="Cart">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-    </button>
     <button class="nav-link" id="loginNavLink" onclick="openModal('loginModal')">Log In</button>
     <button class="nav-link" id="logoutNavLink" style="display:none" onclick="logout()">Log Out</button>
     <button class="nav-cta" onclick="showPage('post-listing')">Post Your Ad</button>
@@ -1746,7 +1774,8 @@
       <div class="fg"><label class="fl">Last Name</label><input class="fi" id="suLast" placeholder="Last"></div>
     </div>
     <div class="fg"><label class="fl">Email</label><input class="fi" id="suEmail" type="email" placeholder="your@email.com"></div>
-    <div class="fg"><label class="fl">Password</label><input class="fi" id="suPass" type="password" placeholder="Min. 8 characters"></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" id="suPass" type="password" placeholder="Min. 8 characters" autocomplete="new-password"></div>
+    <div class="fg"><label class="fl">Confirm Password</label><input class="fi" id="suPass2" type="password" placeholder="Re-enter password" autocomplete="new-password"></div>
     <button class="btn btn-navy btn-full" onclick="signup()" style="margin-top:6px">Create account</button>
     <div class="f-foot" style="margin-top:12px">Already have an account? <a class="f-link" onclick="switchModal('signupModal','loginModal')">Log in</a></div>
   </div>
@@ -1860,6 +1889,79 @@
           <tbody id="adminUsersTbody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN EDIT MODAL ── -->
+<div class="admin-edit-overlay" id="adminEditOverlay">
+  <div class="admin-edit-modal">
+    <h2>Edit Listing</h2>
+    <div class="sub">Make any changes below, then hit the green check to save or red X to cancel.</div>
+    <input type="hidden" id="aefId">
+    <div class="fg"><label class="fl">Listing Title</label><input class="fi" id="aefTitle"></div>
+    <div class="aef-row">
+      <div class="fg"><label class="fl">Category</label>
+        <select class="fi" id="aefSpecies">
+          <option value="Dog">Dog</option>
+          <option value="Cat">Cat</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Breed</label><input class="fi" id="aefBreed"></div>
+    </div>
+    <div class="fg"><label class="fl">Description</label><textarea class="fi" id="aefDesc" style="min-height:90px"></textarea></div>
+    <div class="aef-row">
+      <div class="fg"><label class="fl">Price ($)</label><input class="fi" id="aefPrice" type="number"></div>
+      <div class="fg"><label class="fl">Age</label><input class="fi" id="aefAge"></div>
+    </div>
+    <div class="aef-row">
+      <div class="fg"><label class="fl">State</label>
+        <select class="fi" id="aefState">
+          <option value="Washington">Washington</option>
+          <option value="Idaho">Idaho</option>
+          <option value="Oregon">Oregon</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Location (Town, ST)</label><input class="fi" id="aefLocation"></div>
+    </div>
+    <div class="aef-row">
+      <div class="fg"><label class="fl">Contact Name</label><input class="fi" id="aefContactName"></div>
+      <div class="fg"><label class="fl">Contact Phone</label><input class="fi" id="aefContactPhone"></div>
+    </div>
+    <div class="fg"><label class="fl">Contact Email</label><input class="fi" id="aefContactEmail"></div>
+    <div class="aef-row">
+      <div class="fg"><label class="fl">Plan</label>
+        <select class="fi" id="aefPlan">
+          <option value="standard">Standard</option>
+          <option value="extended">Extended</option>
+          <option value="featured">Featured</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Status</label>
+        <select class="fi" id="aefStatus">
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="expired">Expired</option>
+          <option value="sold">Sold</option>
+        </select>
+      </div>
+    </div>
+    <div class="aef-row">
+      <div class="fg"><label class="fl">Posted Date</label><input class="fi" id="aefPosted" type="date"></div>
+      <div class="fg"><label class="fl">Expiry Date</label><input class="fi" id="aefExpiry" type="date"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Photos & Videos</label>
+      <div class="aef-photos" id="aefPhotos"></div>
+      <label class="aef-uploadbtn" for="aefPhotoInput">📸 Upload new photo/video</label>
+      <input type="file" id="aefPhotoInput" accept="image/*,video/*" multiple style="display:none" onchange="aefUploadPhotos(event)">
+      <div id="aefUploadStatus" style="font-size:12px;color:var(--text-muted);margin-top:6px;display:none">Uploading...</div>
+    </div>
+    <div id="aefAlert"></div>
+    <div class="aef-actions">
+      <button class="aef-cancel" onclick="closeAdminEdit()" title="Cancel">✕</button>
+      <button class="aef-save" onclick="saveAdminEdit()" title="Save changes" id="aefSaveBtn">✓</button>
     </div>
   </div>
 </div>
@@ -2236,16 +2338,23 @@ async function signup() {
   const last  = document.getElementById('suLast').value.trim();
   const email = document.getElementById('suEmail').value.trim();
   const pass  = document.getElementById('suPass').value;
+  const pass2 = document.getElementById('suPass2').value;
   const al    = document.getElementById('signupAlert');
   const btn   = document.querySelector('#signupModal .btn-navy');
 
   al.innerHTML = '';
-  if (!first || !last || !email || !pass) {
+  if (!first || !last || !email || !pass || !pass2) {
     al.innerHTML = '<div class="alert alert-err">Please fill in all fields.</div>';
     return;
   }
   if (pass.length < 8) {
     al.innerHTML = '<div class="alert alert-err">Password must be at least 8 characters.</div>';
+    return;
+  }
+  if (pass !== pass2) {
+    al.innerHTML = '<div class="alert alert-err">Passwords do not match. Please re-enter.</div>';
+    document.getElementById('suPass2').value = '';
+    document.getElementById('suPass2').focus();
     return;
   }
 
@@ -3196,6 +3305,7 @@ function renderAdminListings() {
       <td style="font-size:12px">${l.expiry_date||'—'}</td>
       <td>
         <div class="admin-actions">
+          <button class="admin-btn admin-btn-edit" onclick="openAdminEdit('${l.id}')" title="Edit listing">✏️ Edit</button>
           ${l.status!=='active'?`<button class="admin-btn admin-btn-activate" onclick="adminSetStatus('${l.id}','active')">Activate</button>`:''}
           ${l.status==='active'?`<button class="admin-btn admin-btn-expire" onclick="adminSetStatus('${l.id}','expired')">Expire</button>`:''}
           ${l.plan!=='featured'&&l.status==='active'?`<button class="admin-btn admin-btn-feature" onclick="adminFeature('${l.id}')">Feature</button>`:''}
@@ -3281,6 +3391,135 @@ async function adminDelete(id) {
   });
   showToast('Listing deleted.');
   await loadAdminData();
+}
+
+// ── ADMIN EDIT ─────────────────────────────────────────────────────────────
+let aefPhotoList = [];
+
+function openAdminEdit(id) {
+  const l = (window._adminListings || []).find(x => x.id === id);
+  if (!l) { showToast('Listing not found'); return; }
+
+  document.getElementById('aefId').value = l.id;
+  document.getElementById('aefTitle').value = l.title || '';
+  document.getElementById('aefSpecies').value = l.species || 'Dog';
+  document.getElementById('aefBreed').value = l.breed || '';
+  document.getElementById('aefDesc').value = l.description || '';
+  document.getElementById('aefPrice').value = l.price || 0;
+  document.getElementById('aefAge').value = l.age || '';
+  document.getElementById('aefState').value = l.state || 'Washington';
+  document.getElementById('aefLocation').value = l.location || '';
+  document.getElementById('aefContactName').value = l.contact_name || '';
+  document.getElementById('aefContactPhone').value = l.contact_phone || '';
+  document.getElementById('aefContactEmail').value = l.contact_email || '';
+  document.getElementById('aefPlan').value = l.plan || 'standard';
+  document.getElementById('aefStatus').value = l.status || 'active';
+  document.getElementById('aefPosted').value = l.posted_date || '';
+  document.getElementById('aefExpiry').value = l.expiry_date || '';
+  document.getElementById('aefAlert').innerHTML = '';
+
+  // Build photo list - combine photo_url and photos array
+  aefPhotoList = [];
+  if (l.photo_url) aefPhotoList.push(l.photo_url);
+  (l.photos || []).forEach(p => {
+    const url = typeof p === 'object' && p !== null ? p.url : p;
+    if (url && !aefPhotoList.includes(url)) aefPhotoList.push(url);
+  });
+  renderAefPhotos();
+
+  document.getElementById('adminEditOverlay').classList.add('active');
+}
+
+function closeAdminEdit() {
+  document.getElementById('adminEditOverlay').classList.remove('active');
+  aefPhotoList = [];
+}
+
+function renderAefPhotos() {
+  const wrap = document.getElementById('aefPhotos');
+  if (aefPhotoList.length === 0) {
+    wrap.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">No photos yet</span>';
+    return;
+  }
+  wrap.innerHTML = aefPhotoList.map((url, i) => {
+    const isVideo = /\.(mp4|mov|webm)($|\?)/i.test(url) || url.includes('/video/');
+    return `<div class="aef-photo-thumb">
+      ${isVideo ? `<video src="${url}" muted></video>` : `<img src="${url}" alt="Photo ${i+1}">`}
+      <button class="aef-photo-rm" onclick="aefRemovePhoto(${i})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function aefRemovePhoto(i) {
+  aefPhotoList.splice(i, 1);
+  renderAefPhotos();
+}
+
+async function aefUploadPhotos(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  const statusEl = document.getElementById('aefUploadStatus');
+  statusEl.style.display = 'block';
+
+  for (let i = 0; i < files.length; i++) {
+    statusEl.textContent = 'Uploading ' + (i+1) + ' of ' + files.length + '...';
+    try {
+      const formData = new FormData();
+      formData.append('file', files[i]);
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+      formData.append('folder', 'pnwpetfinder');
+      const res = await fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.secure_url) {
+        aefPhotoList.push(data.secure_url);
+        renderAefPhotos();
+      }
+    } catch(err) {
+      console.error('Upload error:', err);
+    }
+  }
+  statusEl.textContent = 'Done!';
+  setTimeout(() => { statusEl.style.display = 'none'; }, 1500);
+  e.target.value = '';
+}
+
+async function saveAdminEdit() {
+  const id = document.getElementById('aefId').value;
+  const btn = document.getElementById('aefSaveBtn');
+  const alertEl = document.getElementById('aefAlert');
+
+  const updates = {
+    title: document.getElementById('aefTitle').value.trim(),
+    species: document.getElementById('aefSpecies').value,
+    breed: document.getElementById('aefBreed').value.trim(),
+    description: document.getElementById('aefDesc').value.trim(),
+    price: parseFloat(document.getElementById('aefPrice').value) || 0,
+    age: document.getElementById('aefAge').value.trim(),
+    state: document.getElementById('aefState').value,
+    location: document.getElementById('aefLocation').value.trim(),
+    contact_name: document.getElementById('aefContactName').value.trim(),
+    contact_phone: document.getElementById('aefContactPhone').value.trim(),
+    contact_email: document.getElementById('aefContactEmail').value.trim(),
+    plan: document.getElementById('aefPlan').value,
+    status: document.getElementById('aefStatus').value,
+    posted_date: document.getElementById('aefPosted').value || null,
+    expiry_date: document.getElementById('aefExpiry').value || null,
+    featured: document.getElementById('aefPlan').value === 'featured',
+    photo_url: aefPhotoList[0] || null,
+    photos: aefPhotoList
+  };
+
+  btn.textContent = '…'; btn.disabled = true;
+  const ok = await adminPatch(id, updates);
+  btn.textContent = '✓'; btn.disabled = false;
+
+  if (ok) {
+    showToast('Listing updated!');
+    closeAdminEdit();
+    await loadAdminData();
+  } else {
+    alertEl.innerHTML = '<div class="alert alert-err">Save failed — check your connection and RLS policies.</div>';
+  }
 }
 
 
