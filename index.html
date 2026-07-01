@@ -13,6 +13,11 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html, body {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+
     :root {
       --navy: #1a2a3a;
       --gold: #c8a96e;
@@ -359,7 +364,7 @@
     /* ── LISTING CARDS ── */
     .listings-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
       gap: 18px;
     }
 
@@ -1060,6 +1065,21 @@
       nav { padding: 0 16px; }
       .section { padding: 36px 16px; }
       .f-row { flex-direction: column; }
+
+      /* Stack search: full-width bar on top, state + button below */
+      .search-wrap { padding: 14px 16px; }
+      .search-bar { flex-wrap: wrap; gap: 10px; }
+      .search-bar .search-field {
+        flex: 1 1 100%;
+        width: 100%;
+      }
+      .search-bar #homeState,
+      .search-bar #allState {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0;
+      }
+      .search-bar .search-btn { flex: 0 0 auto; }
     }
 
     /* ── NAV DROPDOWN ── */
@@ -1271,7 +1291,7 @@
 
     .admin-table-wrap {
       background: white; border-radius: var(--radius);
-      border: 1px solid var(--gray-light); overflow: hidden;
+      border: 1px solid var(--gray-light); overflow-x: auto;
       box-shadow: var(--shadow-sm);
     }
 
@@ -1458,6 +1478,7 @@
       </div>
     </div>
     <button class="nav-link" id="dashNavLink" style="display:none" onclick="showPage('dashboard');closeMobileNav()">My Listings</button>
+    <button class="nav-link" onclick="showPage('contact');closeMobileNav()">Contact</button>
     <button class="nav-link" id="adminNavLink" style="display:none" onclick="showPage('admin');closeMobileNav()">⚙️ Admin</button>
     <button class="nav-link" id="loginNavLink" onclick="openModal('loginModal');closeMobileNav()">Log In</button>
     <button class="nav-link" id="logoutNavLink" style="display:none" onclick="logout();closeMobileNav()">Log Out</button>
@@ -1841,10 +1862,40 @@
     <div class="modal-sub">Log in to manage your listings</div>
     <div class="fg"><label class="fl">Email</label><input class="fi" id="liEmail" type="email" placeholder="your@email.com" autocomplete="email"></div>
     <div class="fg"><label class="fl">Password</label><input class="fi" id="liPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <div style="text-align:right;margin:-6px 0 4px"><a class="f-link" style="font-size:13px" onclick="openForgotPassword()">Forgot password?</a></div>
     <div id="loginAlert" style="min-height:0"></div>
     <button class="btn btn-navy btn-full" id="loginSubmitBtn" onclick="login()" style="margin-top:6px">Log in</button>
     <div class="f-divider"><span>or</span></div>
     <div class="f-foot">Don't have an account? <a class="f-link" onclick="switchModal('loginModal','signupModal')">Sign up free</a></div>
+  </div>
+</div>
+
+<!-- ── FORGOT PASSWORD MODAL ── -->
+<div class="modal-overlay" id="forgotModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Reset your password</div>
+      <button class="close-x" onclick="closeModal('forgotModal')">×</button>
+    </div>
+    <div class="modal-sub">Enter your email and we'll send you a reset link.</div>
+    <div class="fg"><label class="fl">Email</label><input class="fi" id="fpEmail" type="email" placeholder="your@email.com" autocomplete="email"></div>
+    <div id="forgotAlert" style="min-height:0"></div>
+    <button class="btn btn-navy btn-full" id="forgotSubmitBtn" onclick="sendPasswordReset()" style="margin-top:6px">Send reset link</button>
+    <div class="f-foot" style="margin-top:12px"><a class="f-link" onclick="switchModal('forgotModal','loginModal')">← Back to log in</a></div>
+  </div>
+</div>
+
+<!-- ── SET NEW PASSWORD MODAL (after clicking email link) ── -->
+<div class="modal-overlay" id="resetPwModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Choose a new password</div>
+    </div>
+    <div class="modal-sub">Enter and confirm your new password below.</div>
+    <div class="fg"><label class="fl">New Password</label><input class="fi" id="rpPass" type="password" placeholder="Min. 8 characters" autocomplete="new-password"></div>
+    <div class="fg"><label class="fl">Confirm New Password</label><input class="fi" id="rpPass2" type="password" placeholder="Re-enter password" autocomplete="new-password"></div>
+    <div id="resetPwAlert" style="min-height:0"></div>
+    <button class="btn btn-navy btn-full" id="resetPwBtn" onclick="submitNewPassword()" style="margin-top:6px">Update password</button>
   </div>
 </div>
 
@@ -2054,6 +2105,29 @@
   </div>
 </div>
 
+<!-- ── CONTACT PAGE ── -->
+<div id="page-contact" class="page">
+  <div style="max-width:640px;margin:0 auto;padding:48px 24px 60px">
+    <h1 style="font-family:'Playfair Display',Georgia,serif;font-size:32px;color:var(--navy);margin-bottom:8px;text-align:center">Contact Us</h1>
+    <p style="text-align:center;color:var(--text-mid);margin-bottom:32px">Have a question, concern, or feedback? Send us a message and we'll get back to you as soon as possible.</p>
+
+    <div style="background:white;border:1px solid var(--gray-light);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:28px">
+      <div class="f-row">
+        <div class="fg"><label class="fl">Your Name</label><input class="fi" id="ctName" placeholder="Full name"></div>
+        <div class="fg"><label class="fl">Your Email</label><input class="fi" id="ctEmail" type="email" placeholder="your@email.com"></div>
+      </div>
+      <div class="fg"><label class="fl">Subject</label><input class="fi" id="ctSubject" placeholder="What's this about?"></div>
+      <div class="fg"><label class="fl">Message</label><textarea class="fi" id="ctMessage" style="min-height:130px" placeholder="How can we help?"></textarea></div>
+      <div id="contactPageAlert"></div>
+      <button class="btn btn-navy btn-full" id="ctSubmitBtn" onclick="sendContactMessage()" style="margin-top:6px">Send Message</button>
+    </div>
+
+    <p style="text-align:center;color:var(--text-muted);font-size:13px;margin-top:20px">
+      You can also email us directly at <a href="mailto:tyler@greatescapewebservices.com" class="f-link">tyler@greatescapewebservices.com</a>
+    </p>
+  </div>
+</div>
+
 <!-- ── BLOG PAGE ── -->
 <div id="page-blog" class="page">
   <div class="blog-page">
@@ -2097,9 +2171,7 @@
     <a onclick="showPage('home')">Home</a>
     <a onclick="showPage('listings')">All Listings</a>
     <a onclick="showPage('post-listing')">List Your Pet</a>
-    <a>FAQ</a>
-    <a>Terms of Service</a>
-    <a>Contact Us</a>
+    <a onclick="showPage('contact')">Contact Us</a>
   </div>
   <p>© 2026 PNW Pet Finder · Great Escape Web & Business Services LLC · pnwpetfinder.com</p>
 </footer>
@@ -2146,6 +2218,45 @@ function emailExpiryWarning(sellerEmail, sellerName, listingTitle, daysLeft) {
 
 function emailRelistPrompt(sellerEmail, sellerName, listingTitle) {
   return sendEmail('expiry-relist', { sellerEmail, sellerName, listingTitle });
+}
+
+async function sendContactMessage() {
+  const name = document.getElementById('ctName').value.trim();
+  const email = document.getElementById('ctEmail').value.trim();
+  const subject = document.getElementById('ctSubject').value.trim();
+  const message = document.getElementById('ctMessage').value.trim();
+  const al = document.getElementById('contactPageAlert');
+  const btn = document.getElementById('ctSubmitBtn');
+
+  al.innerHTML = '';
+  if (!name || !email || !message) {
+    al.innerHTML = '<div class="alert alert-err">Please fill in your name, email, and message.</div>';
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    al.innerHTML = '<div class="alert alert-err">Please enter a valid email address.</div>';
+    return;
+  }
+
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  const ok = await sendEmail('contact', {
+    name, email, subject: subject || '(no subject)', message
+  });
+
+  btn.textContent = 'Send Message';
+  btn.disabled = false;
+
+  if (ok) {
+    al.innerHTML = '<div class="alert alert-ok">Thanks! Your message has been sent. We\'ll get back to you soon.</div>';
+    document.getElementById('ctName').value = '';
+    document.getElementById('ctEmail').value = '';
+    document.getElementById('ctSubject').value = '';
+    document.getElementById('ctMessage').value = '';
+  } else {
+    al.innerHTML = '<div class="alert alert-err">Something went wrong sending your message. Please email us directly at tyler@greatescapewebservices.com</div>';
+  }
 }
 
 
@@ -2368,6 +2479,136 @@ function swapPhoto(src, el) {
 }
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
+function openForgotPassword() {
+  closeModal('loginModal');
+  const emailVal = document.getElementById('liEmail').value.trim();
+  if (emailVal) document.getElementById('fpEmail').value = emailVal;
+  document.getElementById('forgotAlert').innerHTML = '';
+  openModal('forgotModal');
+}
+
+async function sendPasswordReset() {
+  const email = document.getElementById('fpEmail').value.trim();
+  const al = document.getElementById('forgotAlert');
+  const btn = document.getElementById('forgotSubmitBtn');
+
+  al.innerHTML = '';
+  if (!email) {
+    al.innerHTML = '<div class="alert alert-err">Please enter your email address.</div>';
+    return;
+  }
+
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/recover', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        email,
+        options: { redirectTo: window.location.origin + '/?reset=true' }
+      })
+    });
+
+    btn.textContent = 'Send reset link';
+    btn.disabled = false;
+
+    // Supabase always returns 200 for recover (to prevent email enumeration)
+    if (res.ok) {
+      al.innerHTML = '<div class="alert alert-ok">If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.</div>';
+      document.getElementById('fpEmail').value = '';
+    } else {
+      const result = await res.json().catch(() => ({}));
+      al.innerHTML = '<div class="alert alert-err">' + (result.error_description || result.msg || 'Something went wrong. Please try again.') + '</div>';
+    }
+  } catch (e) {
+    btn.textContent = 'Send reset link';
+    btn.disabled = false;
+    al.innerHTML = '<div class="alert alert-err">Network error. Please try again.</div>';
+  }
+}
+
+// Detect password-recovery redirect from the email link
+function checkPasswordRecovery() {
+  const hash = window.location.hash || '';
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  const type = params.get('type');
+  const accessToken = params.get('access_token');
+
+  if (type === 'recovery' && accessToken) {
+    // Stash the recovery token so submitNewPassword can use it
+    window._recoveryToken = accessToken;
+    openModal('resetPwModal');
+    // Clean the URL so the tokens don't linger
+    history.replaceState(null, '', window.location.pathname);
+  }
+}
+
+async function submitNewPassword() {
+  const pass  = document.getElementById('rpPass').value;
+  const pass2 = document.getElementById('rpPass2').value;
+  const al    = document.getElementById('resetPwAlert');
+  const btn   = document.getElementById('resetPwBtn');
+
+  al.innerHTML = '';
+  if (!pass || !pass2) {
+    al.innerHTML = '<div class="alert alert-err">Please fill in both fields.</div>';
+    return;
+  }
+  if (pass.length < 8) {
+    al.innerHTML = '<div class="alert alert-err">Password must be at least 8 characters.</div>';
+    return;
+  }
+  if (pass !== pass2) {
+    al.innerHTML = '<div class="alert alert-err">Passwords do not match. Please re-enter.</div>';
+    return;
+  }
+
+  const token = window._recoveryToken;
+  if (!token) {
+    al.innerHTML = '<div class="alert alert-err">Reset session expired. Please request a new reset link.</div>';
+    return;
+  }
+
+  btn.textContent = 'Updating…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ password: pass })
+    });
+
+    btn.textContent = 'Update password';
+    btn.disabled = false;
+
+    if (res.ok) {
+      al.innerHTML = '<div class="alert alert-ok">Password updated! You can now log in with your new password.</div>';
+      window._recoveryToken = null;
+      setTimeout(() => {
+        closeModal('resetPwModal');
+        openModal('loginModal');
+      }, 1800);
+    } else {
+      const result = await res.json().catch(() => ({}));
+      al.innerHTML = '<div class="alert alert-err">' + (result.error_description || result.msg || 'Could not update password. The link may have expired — request a new one.') + '</div>';
+    }
+  } catch (e) {
+    btn.textContent = 'Update password';
+    btn.disabled = false;
+    al.innerHTML = '<div class="alert alert-err">Network error. Please try again.</div>';
+  }
+}
+
 async function login() {
   const email = document.getElementById('liEmail').value.trim();
   const pass  = document.getElementById('liPass').value;
@@ -3966,6 +4207,11 @@ selPlan('extended');
     handlePaymentReturn();
   } catch(e) {
     console.log('Payment return error:', e);
+  }
+  try {
+    checkPasswordRecovery();
+  } catch(e) {
+    console.log('Password recovery check error:', e);
   }
 })();
 </script>
