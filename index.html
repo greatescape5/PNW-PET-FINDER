@@ -1447,6 +1447,71 @@
     .admin-table tr:last-child td { border-bottom: none; }
     .admin-table tr:hover td { background: var(--gray-bg); }
 
+    /* ── MEDIA LIBRARY ── */
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+    }
+    .media-item {
+      background: white;
+      border: 1px solid var(--gray-light);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+    .media-thumb {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      background: #eef1f4;
+      cursor: zoom-in;
+      overflow: hidden;
+    }
+    .media-thumb img, .media-thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .media-vidbadge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(26,42,58,0.85);
+      color: white;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .media-info {
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--text-mid);
+      border-top: 1px solid var(--gray-light);
+    }
+    .media-info .m-title {
+      font-weight: 600;
+      color: var(--navy);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .media-dl {
+      display: block;
+      text-align: center;
+      background: var(--navy);
+      color: white;
+      padding: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .media-dl:hover { background: #243545; }
+
     .admin-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
     .admin-btn {
@@ -2151,6 +2216,7 @@
     <div class="admin-tabs">
       <button class="admin-tab active" onclick="switchAdminTab('listings')">All Listings</button>
       <button class="admin-tab" onclick="switchAdminTab('users')">Users</button>
+      <button class="admin-tab" onclick="switchAdminTab('media')">📷 Media Library</button>
     </div>
 
     <!-- LISTINGS PANEL -->
@@ -2210,6 +2276,23 @@
           <tbody id="adminUsersTbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- MEDIA LIBRARY PANEL -->
+    <div class="admin-panel" id="adminMediaPanel">
+      <div style="background:var(--gold-pale);border:1px solid var(--gold);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#744210">
+        📷 All photos and videos uploaded by users, gathered here for easy access. Click any photo to open full-size, or use the Download button to save it for your Facebook posts.
+      </div>
+      <div class="admin-filter-bar">
+        <input class="admin-search" id="mediaSearch" placeholder="Search by listing title or location..." oninput="renderAdminMedia()">
+        <select class="admin-select" id="mediaTypeFilter" onchange="renderAdminMedia()">
+          <option value="">Photos &amp; Videos</option>
+          <option value="image">Photos only</option>
+          <option value="video">Videos only</option>
+        </select>
+      </div>
+      <div class="admin-count" id="adminMediaCount"></div>
+      <div class="media-grid" id="adminMediaGrid"></div>
     </div>
   </div>
 </div>
@@ -4027,10 +4110,102 @@ function isAdmin() {
 
 function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach((t,i) => {
-    t.classList.toggle('active', (tab==='listings'&&i===0)||(tab==='users'&&i===1));
+    t.classList.toggle('active', (tab==='listings'&&i===0)||(tab==='users'&&i===1)||(tab==='media'&&i===2));
   });
   document.getElementById('adminListingsPanel').classList.toggle('active', tab==='listings');
   document.getElementById('adminUsersPanel').classList.toggle('active', tab==='users');
+  document.getElementById('adminMediaPanel').classList.toggle('active', tab==='media');
+  if (tab === 'media') renderAdminMedia();
+}
+
+// Gather all photos/videos from every listing into one library
+function renderAdminMedia() {
+  const grid = document.getElementById('adminMediaGrid');
+  const countEl = document.getElementById('adminMediaCount');
+  const q = document.getElementById('mediaSearch')?.value?.toLowerCase().trim() || '';
+  const typeFilter = document.getElementById('mediaTypeFilter')?.value || '';
+  const all = window._adminListings || [];
+
+  // Build a flat list of every media item with its listing info
+  const media = [];
+  all.forEach(l => {
+    const title = l.title || 'Untitled';
+    const location = l.location || '';
+    const items = [];
+    // photo_url first, then photos array
+    if (l.photo_url) items.push(l.photo_url);
+    (l.photos || []).forEach(p => {
+      const url = typeof p === 'object' && p !== null ? p.url : p;
+      if (url && !items.includes(url)) items.push(url);
+    });
+    items.forEach(url => {
+      const isVideo = /\.(mp4|mov|webm|m4v)($|\?)/i.test(url) || url.includes('/video/');
+      media.push({ url, title, location, type: isVideo ? 'video' : 'image' });
+    });
+  });
+
+  // Filter
+  const filtered = media.filter(m => {
+    const matchType = !typeFilter || m.type === typeFilter;
+    const matchQ = !q || m.title.toLowerCase().includes(q) || m.location.toLowerCase().includes(q);
+    return matchType && matchQ;
+  });
+
+  countEl.textContent = filtered.length + ' file' + (filtered.length !== 1 ? 's' : '');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<p style="color:var(--text-muted);font-size:14px;padding:20px">No media found. Photos appear here once listings with images are created.</p>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(m => `
+    <div class="media-item">
+      <div class="media-thumb" onclick="openMediaLightbox('${m.url}','${m.type}')">
+        ${m.type === 'video'
+          ? `<video src="${m.url}" muted></video><span class="media-vidbadge">▶ Video</span>`
+          : `<img src="${m.url}" alt="${m.title}" loading="lazy">`}
+      </div>
+      <div class="media-info">
+        <div class="m-title">${m.title}</div>
+        <div>${m.location}</div>
+      </div>
+      <a class="media-dl" onclick="downloadMedia('${m.url}','${m.title.replace(/[^a-z0-9]/gi,'_')}','${m.type}')">⬇ Download</a>
+    </div>
+  `).join('');
+}
+
+// Download a media file (fetches as blob so it saves rather than navigates)
+async function downloadMedia(url, name, type) {
+  try {
+    showToast('Preparing download…');
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const ext = type === 'video' ? 'mp4' : 'jpg';
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = (name || 'pnwpetfinder') + '.' + ext;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  } catch(e) {
+    console.error('Download error:', e);
+    // Fallback — open in new tab so they can long-press/save
+    window.open(url, '_blank');
+  }
+}
+
+// Reuse the lightbox for media preview
+function openMediaLightbox(url, type) {
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lightboxImg');
+  if (type === 'video') {
+    // Open videos in a new tab (lightbox is image-only)
+    window.open(url, '_blank');
+    return;
+  }
+  img.src = url;
+  lb.classList.add('active');
 }
 
 async function loadAdminData() {
