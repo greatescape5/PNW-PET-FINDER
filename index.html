@@ -83,6 +83,34 @@
       gap: 4px;
     }
 
+    /* ── HAMBURGER (mobile/tablet) ── */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      width: 42px;
+      height: 42px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .hamburger:hover { background: var(--gray-bg); }
+    .hamburger span {
+      display: block;
+      width: 100%;
+      height: 2.5px;
+      background: var(--navy);
+      border-radius: 2px;
+      transition: transform 0.25s, opacity 0.25s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+
     .nav-link {
       padding: 8px 14px;
       font-size: 14px;
@@ -1338,6 +1366,63 @@
 
     .user-row-email { font-weight: 600; color: var(--navy); }
     .user-row-date { color: var(--text-muted); font-size: 12px; }
+
+    /* ── MOBILE + TABLET NAV (hamburger) ── */
+    @media (max-width: 900px) {
+      nav { padding: 0 18px; }
+      .hamburger { display: flex; }
+      .nav-links {
+        position: fixed;
+        top: 68px;
+        left: 0;
+        right: 0;
+        background: var(--white);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 8px 0 16px;
+        border-bottom: 1px solid var(--gray-light);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+        transform: translateY(-120%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.28s ease, opacity 0.2s ease;
+        max-height: calc(100vh - 68px);
+        overflow-y: auto;
+        z-index: 199;
+      }
+      .nav-links.open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .nav-link, .nav-dropdown-trigger {
+        width: 100%;
+        text-align: left;
+        padding: 14px 24px;
+        font-size: 16px;
+        border-radius: 0;
+      }
+      .nav-dropdown { width: 100%; position: static; }
+      .nav-dropdown-menu {
+        position: static;
+        box-shadow: none;
+        border: none;
+        background: var(--gray-bg);
+        margin: 0;
+        padding: 0;
+        display: none;
+      }
+      .nav-dropdown-menu.open { display: block; }
+      .dropdown-item { padding: 12px 40px; font-size: 15px; }
+      .nav-cta {
+        margin: 12px 24px 0;
+        width: calc(100% - 48px);
+        padding: 14px;
+        font-size: 16px;
+        text-align: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1348,21 +1433,24 @@
     <span class="nav-logo-pnw">PNW</span>
     <span class="nav-logo-rest">PetFinder.com</span>
   </div>
-  <div class="nav-links">
-    <button class="nav-link" onclick="showPage('listings')">All Listings</button>
-    <button class="nav-link" onclick="showPage('post-listing')">List Your Pet</button>
+  <button class="hamburger" id="hamburgerBtn" onclick="toggleMobileNav()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-links" id="navLinks">
+    <button class="nav-link" onclick="showPage('listings');closeMobileNav()">All Listings</button>
+    <button class="nav-link" onclick="showPage('post-listing');closeMobileNav()">List Your Pet</button>
     <div class="nav-dropdown" id="petCareDropdown">
       <button class="nav-link nav-dropdown-trigger" onclick="toggleDropdown()">Pet Care ▾</button>
       <div class="nav-dropdown-menu" id="dropdownMenu">
-        <button class="dropdown-item" onclick="showBlog('dogs');toggleDropdown()">🐕 Dogs</button>
-        <button class="dropdown-item" onclick="showBlog('cats');toggleDropdown()">🐈 Cats</button>
+        <button class="dropdown-item" onclick="showBlog('dogs');toggleDropdown();closeMobileNav()">🐕 Dogs</button>
+        <button class="dropdown-item" onclick="showBlog('cats');toggleDropdown();closeMobileNav()">🐈 Cats</button>
       </div>
     </div>
-    <button class="nav-link" id="dashNavLink" style="display:none" onclick="showPage('dashboard')">My Listings</button>
-    <button class="nav-link" id="adminNavLink" style="display:none" onclick="showPage('admin')">⚙️ Admin</button>
-    <button class="nav-link" id="loginNavLink" onclick="openModal('loginModal')">Log In</button>
-    <button class="nav-link" id="logoutNavLink" style="display:none" onclick="logout()">Log Out</button>
-    <button class="nav-cta" onclick="showPage('post-listing')">Post Your Ad</button>
+    <button class="nav-link" id="dashNavLink" style="display:none" onclick="showPage('dashboard');closeMobileNav()">My Listings</button>
+    <button class="nav-link" id="adminNavLink" style="display:none" onclick="showPage('admin');closeMobileNav()">⚙️ Admin</button>
+    <button class="nav-link" id="loginNavLink" onclick="openModal('loginModal');closeMobileNav()">Log In</button>
+    <button class="nav-link" id="logoutNavLink" style="display:none" onclick="logout();closeMobileNav()">Log Out</button>
+    <button class="nav-cta" onclick="showPage('post-listing');closeMobileNav()">Post Your Ad</button>
   </div>
 </nav>
 
@@ -1402,15 +1490,15 @@
   <!-- SEARCH -->
   <div class="search-wrap">
     <div class="search-bar">
-      <div class="search-field" style="flex:2">
+      <div class="search-field" style="flex:5">
         <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input class="search-input" id="homeSearch" placeholder="Search breed, location..." oninput="filterListings()">
+        <input class="search-input" id="homeSearch" placeholder="Search by breed, name, location, or keyword..." oninput="filterListings()">
       </div>
-      <select class="search-input" id="homeSpecies" onchange="filterListings()" style="min-width:130px">
-        <option value="">All Animals</option>
-        <option value="Dog">Dogs</option>
-        <option value="Cat">Cats</option>
-        <option value="Other">Other</option>
+      <select class="search-input" id="homeState" onchange="filterListings()" style="min-width:150px">
+        <option value="">All States</option>
+        <option value="Washington">Washington</option>
+        <option value="Idaho">Idaho</option>
+        <option value="Oregon">Oregon</option>
       </select>
       <button class="search-btn" onclick="showPage('listings')">Search</button>
     </div>
@@ -1504,26 +1592,15 @@
 <div id="page-listings" class="page">
   <div style="background:white;padding:16px 32px;border-bottom:1px solid var(--gray-light)">
     <div class="search-bar" style="max-width:1000px;margin:0 auto">
-      <div class="search-field" style="flex:2">
+      <div class="search-field" style="flex:5">
         <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input class="search-input" id="allSearch" placeholder="Search breed, name, location..." oninput="filterListings()">
+        <input class="search-input" id="allSearch" placeholder="Search by breed, name, location, or keyword..." oninput="filterListings()">
       </div>
-      <select class="search-input" id="allSpecies" onchange="filterListings()" style="min-width:130px">
-        <option value="">All Animals</option>
-        <option value="Dog">Dogs</option>
-        <option value="Cat">Cats</option>
-        <option value="Other">Other</option>
-      </select>
-      <select class="search-input" id="allState" onchange="filterListings()" style="min-width:140px">
-        <option value="">All Locations</option>
+      <select class="search-input" id="allState" onchange="filterListings()" style="min-width:150px">
+        <option value="">All States</option>
         <option value="Washington">Washington</option>
         <option value="Idaho">Idaho</option>
         <option value="Oregon">Oregon</option>
-      </select>
-      <select class="search-input" id="allStatus" onchange="filterListings()" style="min-width:130px">
-        <option value="active">Active Listings</option>
-        <option value="expired">Past Listings</option>
-        <option value="all">All Listings</option>
       </select>
     </div>
   </div>
@@ -2169,26 +2246,42 @@ function card(l) {
 }
 
 function renderHome() {
-  const feat = listings.filter(l => l.status==='active' && l.plan==='featured');
-  const rest = listings.filter(l => l.status==='active' && l.plan!=='featured').slice(0,3);
-  document.getElementById('homeGrid').innerHTML = [...feat,...rest].slice(0,6).map(card).join('');
+  const feat = listings.filter(l => l.status==='active' && l.plan==='featured').slice(0,4);
+  // If fewer than 4 featured, fill up to 4 with newest active listings
+  let show = feat;
+  if (feat.length < 4) {
+    const rest = listings.filter(l => l.status==='active' && l.plan!=='featured').slice(0, 4 - feat.length);
+    show = [...feat, ...rest];
+  }
+  document.getElementById('homeGrid').innerHTML = show.slice(0,4).map(card).join('');
 }
 
 function renderAll() { filterListings(); }
 
 function filterListings() {
-  const q = (document.getElementById('allSearch') || document.getElementById('homeSearch'))?.value?.toLowerCase() || '';
-  const sp = document.getElementById('allSpecies')?.value || document.getElementById('homeSpecies')?.value || '';
-  const st = document.getElementById('allState')?.value || '';
+  const q = (document.getElementById('allSearch') || document.getElementById('homeSearch'))?.value?.toLowerCase().trim() || '';
+  const st = document.getElementById('allState')?.value || document.getElementById('homeState')?.value || '';
 
   const statusFilter = document.getElementById('allStatus')?.value || 'active';
+  // Status dropdown removed — always show active listings on public pages
+
+  // Split query into words for smarter multi-term matching
+  const terms = q.split(/\s+/).filter(Boolean);
+
   const filtered = listings.filter(l => {
     const matchStatus = statusFilter === 'all' ? true : l.status === statusFilter;
     if (!matchStatus) return false;
-    const mq = !q || l.title.toLowerCase().includes(q) || l.breed.toLowerCase().includes(q) || l.location.toLowerCase().includes(q);
-    const ms = !sp || l.species === sp;
+
+    // Build a searchable text blob from all relevant fields
+    const haystack = [
+      l.title, l.breed, l.species, l.location, l.state,
+      l.age, l.desc, l.contact?.name
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    // Every search term must appear somewhere (smart AND matching)
+    const mq = terms.length === 0 || terms.every(t => haystack.includes(t));
     const mst = !st || l.state === st;
-    return mq && ms && mst;
+    return mq && mst;
   });
 
   const feat = filtered.filter(l => l.plan==='featured');
@@ -3768,6 +3861,22 @@ let currentBlogCategory = 'dogs';
 
 function toggleDropdown() {
   document.getElementById('dropdownMenu').classList.toggle('open');
+}
+
+function toggleMobileNav() {
+  const links = document.getElementById('navLinks');
+  const btn = document.getElementById('hamburgerBtn');
+  links.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+
+function closeMobileNav() {
+  const links = document.getElementById('navLinks');
+  const btn = document.getElementById('hamburgerBtn');
+  if (links) links.classList.remove('open');
+  if (btn) btn.classList.remove('open');
+  const dd = document.getElementById('dropdownMenu');
+  if (dd) dd.classList.remove('open');
 }
 
 document.addEventListener('click', function(e) {
