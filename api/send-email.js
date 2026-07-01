@@ -42,6 +42,11 @@ export default async function handler(req, res) {
       extended: 'Extended — 4 Weeks',
       featured: 'Featured — 2 Weeks (Front Page)'
     };
+    const planPrices = {
+      standard: '$6.99',
+      extended: '$11.99',
+      featured: '$19.99'
+    };
     to = sellerEmail;
     toName = sellerName;
     subject = '🐾 Your listing is live on PNW Pet Finder!';
@@ -53,14 +58,63 @@ export default async function handler(req, res) {
         <p style="margin:0 0 10px;color:#1a2a3a;font-weight:bold">Listing Details</p>
         <p style="margin:4px 0;color:#4a5568">📋 <strong>Title:</strong> ${listing.title}</p>
         <p style="margin:4px 0;color:#4a5568">📦 <strong>Plan:</strong> ${planNames[listing.plan] || listing.plan}</p>
+        <p style="margin:4px 0;color:#4a5568">💳 <strong>Amount Paid:</strong> ${planPrices[listing.plan] || '—'}</p>
         <p style="margin:4px 0;color:#4a5568">📍 <strong>Location:</strong> ${listing.location}</p>
         <p style="margin:4px 0;color:#4a5568">📅 <strong>Expires:</strong> ${listing.expiryDate}</p>
       </div>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${SITE_URL}" style="background:#1a2a3a;color:white;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold">View & Edit Your Listing →</a>
+      <div style="text-align:center;margin:24px 0">
+        <a href="${SITE_URL}" style="display:inline-block;background:#1a2a3a;color:white;padding:11px 22px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px">View &amp; Edit Your Listing →</a>
       </div>
       <p style="color:#4a5568;font-size:14px">You will receive a reminder 7 days and 3 days before your listing expires.</p>
     `);
+
+    // Also send an admin notification copy to Tyler with full listing info
+    try {
+      await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SENDGRID_API_KEY}`
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: 'tyler@greatescapewebservices.com', name: 'PNW Pet Finder Admin' }] }],
+          from: { email: FROM_EMAIL, name: FROM_NAME },
+          reply_to: { email: sellerEmail },
+          subject: `🆕 New listing: ${listing.title} (${planPrices[listing.plan] || ''} ${listing.plan})`,
+          content: [{ type: 'text/html', value: baseStyle.replace('BODY', `
+            <h2 style="color:#1a2a3a;margin-top:0">New listing posted</h2>
+            <p style="color:#4a5568">A new listing just went live and needs a quick review:</p>
+            <div style="background:#f5efe6;border-radius:8px;padding:20px;margin:16px 0">
+              <p style="margin:4px 0;color:#4a5568">📋 <strong>Title:</strong> ${listing.title}</p>
+              <p style="margin:4px 0;color:#4a5568">📦 <strong>Plan:</strong> ${planNames[listing.plan] || listing.plan}</p>
+              <p style="margin:4px 0;color:#4a5568">💳 <strong>Paid:</strong> ${planPrices[listing.plan] || '—'}</p>
+              <p style="margin:4px 0;color:#4a5568">🐕 <strong>Breed:</strong> ${listing.breed || '—'}</p>
+              <p style="margin:4px 0;color:#4a5568">🐾 <strong>Category:</strong> ${listing.species || '—'}</p>
+              <p style="margin:4px 0;color:#4a5568">📅 <strong>Age:</strong> ${listing.age || '—'}</p>
+              <p style="margin:4px 0;color:#4a5568">💰 <strong>Price:</strong> ${listing.price > 0 ? '$' + listing.price : 'Free / Rehoming'}</p>
+              <p style="margin:4px 0;color:#4a5568">📍 <strong>Location:</strong> ${listing.location} (${listing.state || ''})</p>
+              <p style="margin:4px 0;color:#4a5568">📅 <strong>Expires:</strong> ${listing.expiryDate}</p>
+            </div>
+            <div style="background:#f5efe6;border-radius:8px;padding:20px;margin:16px 0">
+              <p style="margin:0 0 8px;color:#1a2a3a;font-weight:bold">Seller Contact</p>
+              <p style="margin:4px 0;color:#4a5568">👤 <strong>Name:</strong> ${sellerName}</p>
+              <p style="margin:4px 0;color:#4a5568">✉️ <strong>Email:</strong> ${sellerEmail}</p>
+              <p style="margin:4px 0;color:#4a5568">📞 <strong>Phone:</strong> ${listing.contact?.phone || listing.contactPhone || '—'}</p>
+            </div>
+            <div style="background:white;border:1px solid #e0d8cc;border-radius:8px;padding:16px;margin:16px 0">
+              <p style="margin:0 0 6px;color:#1a2a3a;font-weight:bold">Description</p>
+              <p style="margin:0;color:#4a5568;white-space:pre-wrap">${listing.desc || listing.description || '—'}</p>
+            </div>
+            <div style="text-align:center;margin:20px 0">
+              <a href="${SITE_URL}" style="display:inline-block;background:#1a2a3a;color:white;padding:11px 22px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px">Review in Admin →</a>
+            </div>
+          `) }]
+        })
+      });
+    } catch (adminErr) {
+      console.error('Admin notification failed:', adminErr);
+      // Don't fail the whole request if the admin copy fails
+    }
 
   } else if (type === 'inquiry') {
     // Buyer contacting seller — seller gets email, reply-to is buyer
@@ -102,7 +156,7 @@ export default async function handler(req, res) {
       <p style="color:#4a5568">Your listing <strong>${listingTitle}</strong> expires in <strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</strong>.</p>
       ${urgent ? '<p style="color:#dc2626;font-weight:bold">Relist now to stay visible to buyers!</p>' : ''}
       <div style="text-align:center;margin:28px 0">
-        <a href="${SITE_URL}" style="background:#c8a96e;color:#1a2a3a;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:16px">Relist for $6.99 →</a>
+        <a href="${SITE_URL}" style="display:inline-block;background:#c8a96e;color:#1a2a3a;padding:11px 22px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px">Relist for $6.99 →</a>
       </div>
       <p style="color:#4a5568;font-size:13px;text-align:center">Standard 2-week relist · Goes live instantly after payment</p>
     `);
@@ -120,16 +174,35 @@ export default async function handler(req, res) {
         <p style="color:#1a2a3a;font-weight:bold;margin:0 0 6px;font-size:16px">Was your pet successfully rehomed? 🐾</p>
         <p style="color:#4a5568;font-size:13px;margin:0 0 18px">We'd love to know — your feedback helps us improve PNW Pet Finder!</p>
         <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-          <a href="${SITE_URL}?feedback=yes&listing=${encodeURIComponent(listingTitle)}" style="background:#16a34a;color:white;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold">✓ Yes, rehomed!</a>
-          <a href="${SITE_URL}?feedback=no&listing=${encodeURIComponent(listingTitle)}" style="background:#6b7280;color:white;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold">Not yet</a>
+          <a href="${SITE_URL}?feedback=yes&listing=${encodeURIComponent(listingTitle)}" style="display:inline-block;background:#16a34a;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px">✓ Yes, rehomed!</a>
+          <a href="${SITE_URL}?feedback=no&listing=${encodeURIComponent(listingTitle)}" style="display:inline-block;background:#6b7280;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px">Not yet</a>
         </div>
       </div>
       <div style="background:#f5efe6;border-radius:8px;padding:24px;margin:20px 0;text-align:center">
         <p style="color:#1a2a3a;font-weight:bold;margin:0 0 6px">Still looking for a home?</p>
         <p style="color:#4a5568;font-size:13px;margin:0 0 16px">Relist and reach buyers across the Pacific Northwest again.</p>
-        <a href="${SITE_URL}" style="background:#c8a96e;color:#1a2a3a;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold">Relist for $6.99 →</a>
+        <a href="${SITE_URL}" style="display:inline-block;background:#c8a96e;color:#1a2a3a;padding:11px 22px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px">Relist for $6.99 →</a>
       </div>
       <p style="color:#4a5568;font-size:13px">How was your experience with PNW Pet Finder? Reply to this email and let us know — we read every response.</p>
+    `);
+
+  } else if (type === 'contact') {
+    const { name, email, subject: subj, message } = data;
+    to = 'tyler@greatescapewebservices.com';
+    toName = 'PNW Pet Finder Admin';
+    replyTo = email;
+    subject = `📬 Contact form: ${subj}`;
+    html = baseStyle.replace('BODY', `
+      <h2 style="color:#1a2a3a;margin-top:0">New contact form message</h2>
+      <p style="color:#4a5568">You've received a new message through the PNW Pet Finder contact page:</p>
+      <div style="background:#f5efe6;border-radius:8px;padding:20px;margin:16px 0">
+        <p style="color:#1a2a3a;margin:0 0 8px"><strong>From:</strong> ${name}</p>
+        <p style="color:#1a2a3a;margin:0 0 8px"><strong>Email:</strong> ${email}</p>
+        <p style="color:#1a2a3a;margin:0 0 8px"><strong>Subject:</strong> ${subj}</p>
+        <p style="color:#1a2a3a;margin:12px 0 4px"><strong>Message:</strong></p>
+        <p style="color:#4a5568;white-space:pre-wrap;margin:0">${message}</p>
+      </div>
+      <p style="color:#4a5568;font-size:13px">Reply directly to this email to respond to ${name}.</p>
     `);
 
   } else {
