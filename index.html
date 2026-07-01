@@ -276,7 +276,7 @@
     .search-bar {
       display: flex;
       gap: 10px;
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -1058,7 +1058,6 @@
       .hero-tiles { grid-template-rows: repeat(4,1fr); }
       .hero-tile { min-height: 160px; }
       nav { padding: 0 16px; }
-      .nav-link { display: none; }
       .section { padding: 36px 16px; }
       .f-row { flex-direction: column; }
     }
@@ -1377,8 +1376,7 @@
         left: 0;
         right: 0;
         background: var(--white);
-        flex-direction: column;
-        align-items: stretch;
+        display: block;
         gap: 0;
         padding: 8px 0 16px;
         border-bottom: 1px solid var(--gray-light);
@@ -1396,12 +1394,25 @@
         opacity: 1;
         pointer-events: auto;
       }
-      .nav-link, .nav-dropdown-trigger {
+      .nav-links .nav-link {
+        display: block;
         width: 100%;
         text-align: left;
-        padding: 14px 24px;
+        padding: 15px 24px;
         font-size: 16px;
         border-radius: 0;
+        color: var(--navy);
+        background: none;
+        border-bottom: 1px solid var(--gray-bg);
+      }
+      .nav-dropdown-trigger {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 15px 24px;
+        font-size: 16px;
+        color: var(--navy);
+        border-bottom: 1px solid var(--gray-bg);
       }
       .nav-dropdown { width: 100%; position: static; }
       .nav-dropdown-menu {
@@ -1490,11 +1501,11 @@
   <!-- SEARCH -->
   <div class="search-wrap">
     <div class="search-bar">
-      <div class="search-field" style="flex:5">
+      <div class="search-field" style="flex:1">
         <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="search-input" id="homeSearch" placeholder="Search by breed, name, location, or keyword..." oninput="filterListings()">
       </div>
-      <select class="search-input" id="homeState" onchange="filterListings()" style="min-width:150px">
+      <select class="search-input" id="homeState" onchange="filterListings()" style="flex:0 0 150px;width:150px">
         <option value="">All States</option>
         <option value="Washington">Washington</option>
         <option value="Idaho">Idaho</option>
@@ -1591,12 +1602,12 @@
 <!-- ── ALL LISTINGS ── -->
 <div id="page-listings" class="page">
   <div style="background:white;padding:16px 32px;border-bottom:1px solid var(--gray-light)">
-    <div class="search-bar" style="max-width:1000px;margin:0 auto">
-      <div class="search-field" style="flex:5">
+    <div class="search-bar" style="max-width:1200px;margin:0 auto">
+      <div class="search-field" style="flex:1">
         <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="search-input" id="allSearch" placeholder="Search by breed, name, location, or keyword..." oninput="filterListings()">
       </div>
-      <select class="search-input" id="allState" onchange="filterListings()" style="min-width:150px">
+      <select class="search-input" id="allState" onchange="filterListings()" style="flex:0 0 180px;width:180px">
         <option value="">All States</option>
         <option value="Washington">Washington</option>
         <option value="Idaho">Idaho</option>
