@@ -446,13 +446,13 @@
 
     .card-img {
       position: relative;
-      height: 200px;
+      height: 220px;
       overflow: hidden;
-      background: var(--gray-light);
+      background: #eef1f4;
     }
 
-    .card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s; }
-    .listing-card:hover .card-img img { transform: scale(1.04); }
+    .card-img img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.35s; }
+    .listing-card:hover .card-img img { transform: scale(1.03); }
 
     .card-img-placeholder {
       width: 100%; height: 100%;
@@ -1901,6 +1901,10 @@
 
     <div class="lf-section">
       <h2>Photos & Videos</h2>
+      <div style="margin-bottom:14px;padding:14px 16px;background:#fff8e6;border:1.5px solid var(--gold);border-radius:8px;font-size:14px;color:#744210;display:flex;align-items:flex-start;gap:10px">
+        <span style="flex-shrink:0;font-size:18px">⏳</span>
+        <span><strong>Please note:</strong> Uploads may take <strong>1–2 minutes</strong>, especially for videos. Keep this screen open until uploading finishes — you'll see a progress bar below.</span>
+      </div>
       <div class="photo-drop" id="photoDrop" onclick="document.getElementById('photoIn').click()" ondragover="dOver(event)" ondrop="dDrop(event)">
         <div class="photo-drop-icon">📸</div>
         <div class="photo-drop-text"><strong>Click to upload</strong> or drag & drop</div>
@@ -2602,6 +2606,7 @@ function showPage(p) {
   if (p === 'home') renderHome();
   if (p === 'listings') renderAll();
   if (p === 'dashboard') renderDash();
+  if (p === 'post-listing') prefillContactInfo();
   if (p === 'admin') { if (isAdmin()) loadAdminData(); else showPage('home'); }
 
   // Update page title for SEO and browser tab
@@ -3068,10 +3073,11 @@ async function signup() {
       return;
     }
 
-    // Store token
+    // Store token in localStorage (persists across Stripe redirect)
     if (result.access_token) {
-      sessionStorage.setItem('pnw_token', result.access_token);
-      sessionStorage.setItem('pnw_user', JSON.stringify(user));
+      localStorage.setItem('pnw_token', result.access_token);
+      localStorage.setItem('pnw_refresh', result.refresh_token || '');
+      localStorage.setItem('pnw_user', JSON.stringify(user));
 
       // Insert profile using the token
       await fetch(SUPABASE_URL + '/rest/v1/profiles', {
@@ -3154,12 +3160,14 @@ async function uploadToCloudinary(files) {
   const progressBar = document.getElementById('uploadBar');
   const progressStatus = document.getElementById('uploadStatus');
   progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
 
   let completed = 0;
-  for (const file of toUpload) {
-    progressStatus.textContent = 'Uploading ' + (completed + 1) + ' of ' + toUpload.length + '...';
-    progressBar.style.width = Math.round((completed / toUpload.length) * 100) + '%';
+  const total = toUpload.length;
+  progressStatus.textContent = 'Uploading ' + total + ' file' + (total !== 1 ? 's' : '') + '... please keep this screen open';
 
+  // Upload all files in PARALLEL (much faster than one-at-a-time)
+  const uploadOne = async (file) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -3170,10 +3178,18 @@ async function uploadToCloudinary(files) {
       const data = await res.json();
 
       if (data.secure_url) {
+        // Build an optimized delivery URL: auto quality + auto format
+        // Cloudinary transforms are inserted after /upload/
+        let optimizedUrl = data.secure_url;
+        if (data.resource_type === 'image') {
+          optimizedUrl = data.secure_url.replace('/upload/', '/upload/q_auto,f_auto,w_1200,c_limit/');
+        } else if (data.resource_type === 'video') {
+          optimizedUrl = data.secure_url.replace('/upload/', '/upload/q_auto/');
+        }
         photos.push({
-          url: data.secure_url,
+          url: optimizedUrl,
           publicId: data.public_id,
-          type: data.resource_type // 'image' or 'video'
+          type: data.resource_type
         });
         renderPhotos();
       } else {
@@ -3185,9 +3201,11 @@ async function uploadToCloudinary(files) {
       showToast('Upload error: ' + e.message);
     }
     completed++;
-  }
+    progressBar.style.width = Math.round((completed / total) * 100) + '%';
+    progressStatus.textContent = 'Uploaded ' + completed + ' of ' + total + '...';
+  };
 
-  progressBar.style.width = '100%';
+  await Promise.all(toUpload.map(uploadOne));
   progressStatus.textContent = completed + ' file' + (completed !== 1 ? 's' : '') + ' uploaded!';
   setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 2000);
   document.getElementById('photoIn').value = '';
@@ -3516,6 +3534,23 @@ async function activateAnyPendingAfterLogin() {
     await loadUserListings().catch(()=>{});
     await loadPublicListings().catch(()=>{});
   }
+}
+
+// Autofill the seller name and email from the logged-in user
+function prefillContactInfo() {
+  if (!currentUser) return;
+  // Small delay ensures the page fields are rendered and active
+  setTimeout(() => {
+    const nameEl = document.getElementById('pSeller');
+    const emailEl = document.getElementById('pEmail');
+    if (nameEl && !nameEl.value.trim()) {
+      const fullName = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ').trim();
+      if (fullName) nameEl.value = fullName;
+    }
+    if (emailEl && !emailEl.value.trim() && currentUser.email) {
+      emailEl.value = currentUser.email;
+    }
+  }, 50);
 }
 
 function resetForm() {
@@ -3894,12 +3929,26 @@ async function restoreSession() {
       console.log('Restoring session for:', user.email);
 
       // Verify token is still valid
-      const res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      let res = await fetch(SUPABASE_URL + '/auth/v1/user', {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': 'Bearer ' + savedToken
         }
       });
+
+      // If the access token expired, try to refresh it instead of logging out
+      if (!res.ok) {
+        console.log('Access token invalid — attempting refresh...');
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': 'Bearer ' + localStorage.getItem('pnw_token')
+            }
+          });
+        }
+      }
 
       if (res.ok) {
         const userData = await res.json();
@@ -3915,17 +3964,51 @@ async function restoreSession() {
         // Safety net: finish activating any paid-but-pending listing
         activateAnyPendingAfterLogin().catch(()=>{});
       } else {
-        // Token expired - clear storage
+        // Refresh also failed — only now clear storage
         localStorage.removeItem('pnw_token');
         localStorage.removeItem('pnw_refresh');
         localStorage.removeItem('pnw_user');
-        console.log('Saved token expired, cleared.');
+        console.log('Session could not be restored or refreshed, cleared.');
       }
     }
   } catch(e) {
     console.log('Session restore failed:', e.message);
   }
   await loadPublicListings();
+}
+
+// Exchange the stored refresh token for a fresh access token
+async function refreshAccessToken() {
+  try {
+    const refreshToken = localStorage.getItem('pnw_refresh');
+    if (!refreshToken) return false;
+
+    const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+
+    if (!res.ok) {
+      console.log('Refresh token rejected:', res.status);
+      return false;
+    }
+
+    const data = await res.json();
+    if (data.access_token) {
+      localStorage.setItem('pnw_token', data.access_token);
+      if (data.refresh_token) localStorage.setItem('pnw_refresh', data.refresh_token);
+      console.log('Access token refreshed successfully.');
+      return true;
+    }
+    return false;
+  } catch(e) {
+    console.log('Token refresh error:', e.message);
+    return false;
+  }
 }
 
 // NOTE: Removed the sb.auth.onAuthStateChange SDK listener.
