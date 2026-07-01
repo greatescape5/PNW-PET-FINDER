@@ -866,6 +866,64 @@
 
     .detail-thumb.on { border-color: var(--gold); }
 
+    .detail-location {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .detail-location .loc-pin { font-size: 19px; }
+    .detail-location .loc-state {
+      font-size: 13px;
+      font-weight: 600;
+      color: #744210;
+      background: var(--gold-pale);
+      border: 1px solid var(--gold);
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-left: 4px;
+    }
+
+    /* ── LIGHTBOX ── */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      background: rgba(15,22,30,0.92);
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      cursor: zoom-out;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-width: 95%;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      cursor: default;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 18px;
+      right: 24px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 28px;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.3); }
+
     .detail-tags {
       display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;
     }
@@ -1120,26 +1178,29 @@
     /* ── RESPONSIVE ── */
     @media (max-width: 780px) {
       .hero-split { grid-template-columns: 1fr; min-height: unset; }
+      .hero-main { min-height: 360px; }
+      .hero-content { padding: 36px 24px; }
       .hero-tiles { grid-template-rows: repeat(4,1fr); }
       .hero-tile { min-height: 160px; }
       nav { padding: 0 16px; }
       .section { padding: 36px 16px; }
       .f-row { flex-direction: column; }
 
-      /* Stack search: full-width bar on top, state + button below */
+      /* Search: big search field + small state dropdown on the same row */
       .search-wrap { padding: 14px 16px; }
-      .search-bar { flex-wrap: wrap; gap: 10px; }
+      .search-bar { flex-wrap: nowrap; gap: 8px; }
       .search-bar .search-field {
-        flex: 1 1 100%;
-        width: 100%;
+        flex: 1 1 auto;
+        min-width: 0;
       }
       .search-bar #homeState,
       .search-bar #allState {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        min-width: 0;
+        flex: 0 0 110px !important;
+        width: 110px !important;
+        min-width: 110px;
       }
-      .search-bar .search-btn { flex: 0 0 auto; }
+      .search-bar .search-input { font-size: 14px; }
+      .search-bar .search-btn { flex: 0 0 auto; padding: 10px 14px; }
     }
 
     /* ── NAV DROPDOWN ── */
@@ -1604,7 +1665,7 @@
         <div class="hero-tile-bg" style="background-image:url('https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=600&q=75')"></div>
         <div class="hero-tile-content"><button class="hero-tile-btn">About Us</button></div>
       </div>
-      <div class="hero-tile" onclick="showPage('home')">
+      <div class="hero-tile" onclick="showPage('contact')">
         <div class="hero-tile-bg" style="background-image:url('https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=600&q=75')"></div>
         <div class="hero-tile-content"><button class="hero-tile-btn">Contact Us</button></div>
       </div>
@@ -1748,8 +1809,9 @@
     <button class="back-link" onclick="showPage('listings')">← Back to listings</button>
     <div class="detail-grid">
       <div>
-        <img id="dMainImg" class="detail-main-img" src="" alt="">
+        <img id="dMainImg" class="detail-main-img" src="" alt="" onclick="openLightbox()" style="cursor:zoom-in">
         <div class="detail-thumbs" id="dThumbs"></div>
+        <div class="detail-location" id="dLocation"></div>
         <div class="detail-tags" id="dTags" style="margin-top:14px"></div>
         <h1 class="detail-title" id="dTitle"></h1>
         <div class="price-pill" id="dPrice"></div>
@@ -1781,6 +1843,12 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- ── PHOTO LIGHTBOX ── -->
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">×</button>
+  <img id="lightboxImg" src="" alt="" onclick="event.stopPropagation()">
 </div>
 
 <!-- ── POST LISTING ── -->
@@ -2671,6 +2739,14 @@ function openDetail(id) {
     if (priceEl) priceEl.textContent = l.price > 0 ? '$' + Number(l.price).toLocaleString() : 'Free / Rehoming Fee';
     if (descEl)  descEl.textContent  = l.desc || '';
 
+    // Prominent location line
+    const locEl = document.getElementById('dLocation');
+    if (locEl) {
+      locEl.innerHTML = l.location
+        ? `<span class="loc-pin">📍</span><span>${l.location}</span>${l.state ? `<span class="loc-state">${l.state}</span>` : ''}`
+        : '';
+    }
+
     // Thumbnails - handle both string and object photo formats
     const photos = (l.photos || []).map(p => typeof p === 'object' && p !== null ? p.url : p).filter(Boolean);
     if (photoUrl && !photos.includes(photoUrl)) photos.unshift(photoUrl);
@@ -2709,6 +2785,21 @@ function swapPhoto(src, el) {
   document.querySelectorAll('.detail-thumb').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
 }
+
+function openLightbox() {
+  const mainSrc = document.getElementById('dMainImg').src;
+  if (!mainSrc) return;
+  document.getElementById('lightboxImg').src = mainSrc;
+  document.getElementById('lightbox').classList.add('active');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeLightbox();
+});
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
 function openForgotPassword() {
