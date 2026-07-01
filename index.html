@@ -2996,12 +2996,8 @@ async function login() {
     closeModal('loginModal');
     showToast('Welcome back, ' + currentUser.firstName + '!');
 
-    // Check if there's a pending listing to activate (from payment return)
-    const pendingId = localStorage.getItem('pendingListingId');
-    if (pendingId) {
-      await activateListingById(pendingId);
-      localStorage.removeItem('pendingListingId');
-    }
+    // Safety net: activate any pending listing that was paid for but not yet activated
+    await activateAnyPendingAfterLogin();
     loadUserListings().catch(e => console.log('loadUserListings error:', e));
 
   } catch(e) {
@@ -3303,13 +3299,13 @@ async function processPayment() {
     const listingId = saved ? saved.id : 'local_' + Date.now();
 
     if (saved) {
-      sessionStorage.setItem('pendingListingId', saved.id);
+      localStorage.setItem('pendingListingId', saved.id);
     } else {
-      // Fallback — store in sessionStorage
+      // Fallback — store in localStorage (survives Stripe redirect)
       pendingListing.id = listingId;
-      sessionStorage.setItem('pendingListingData', JSON.stringify(pendingListing));
+      localStorage.setItem('pendingListingData', JSON.stringify(pendingListing));
     }
-    sessionStorage.setItem('pendingListingPlan', pendingListing.plan);
+    localStorage.setItem('pendingListingPlan', pendingListing.plan);
 
     const paymentLink = STRIPE_LINKS[pendingListing.plan];
 
@@ -3327,6 +3323,8 @@ async function processPayment() {
         resetForm();
         sessionStorage.removeItem('pendingListingId');
         sessionStorage.removeItem('pendingListingData');
+        localStorage.removeItem('pendingListingId');
+        localStorage.removeItem('pendingListingData');
         if (currentUser) await loadUserListings();
         showPage('success');
       }, 1500);
@@ -3425,46 +3423,98 @@ async function activateListingById(id) {
 async function handlePaymentReturn() {
   const params = new URLSearchParams(window.location.search);
   const payment = params.get('payment');
-  const listingId = params.get('listing') || localStorage.getItem('pendingListingId');
+  // Read listing ID from URL or either storage (localStorage survives redirects best)
+  const listingId = params.get('listing')
+    || localStorage.getItem('pendingListingId')
+    || sessionStorage.getItem('pendingListingId');
 
   if (payment === 'success') {
-    // Show success page immediately regardless of auth state
     window.history.replaceState({}, '', window.location.pathname);
     showPage('success');
 
-    // Activate listing — wait up to 5 seconds for session to restore
     if (listingId) {
+      // Wait for session to restore, then activate. Retry generously (mobile is slow).
       let attempts = 0;
+      const maxAttempts = 20; // 20 x 500ms = 10 seconds
       const tryActivate = async () => {
         attempts++;
-        if (currentUser) {
-          await activateListingById(listingId);
-          localStorage.removeItem('pendingListingId');
-          localStorage.removeItem('pendingListingData');
-          await loadUserListings();
-          await loadPublicListings();
-          resetForm();
-          // Send confirmation email
-          if (currentUser) {
-            const confirmedListing = listings.find(l => l.id === listingId) || pendingListing;
-            if (confirmedListing && currentUser.email) {
-              emailListingConfirmation(confirmedListing, currentUser.email, currentUser.firstName).catch(e => console.log('Confirmation email error:', e));
+        const token = localStorage.getItem('pnw_token');
+
+        if (token) {
+          // Activate directly with the token — don't require currentUser to be set
+          const activated = await activateListingByIdWithToken(listingId, token);
+          if (activated) {
+            localStorage.removeItem('pendingListingId');
+            sessionStorage.removeItem('pendingListingId');
+            localStorage.removeItem('pendingListingData');
+            sessionStorage.removeItem('pendingListingData');
+            // Refresh views if user is loaded
+            if (currentUser) {
+              await loadUserListings().catch(()=>{});
             }
+            await loadPublicListings().catch(()=>{});
+            resetForm();
+            // Send confirmation email
+            const confirmedListing = listings.find(l => l.id === listingId) || pendingListing;
+            const emailTo = currentUser?.email || confirmedListing?.contact?.email;
+            const nameTo = currentUser?.firstName || confirmedListing?.contact?.name || 'there';
+            if (confirmedListing && emailTo) {
+              emailListingConfirmation(confirmedListing, emailTo, nameTo).catch(e => console.log('Confirmation email error:', e));
+            }
+            return; // done
           }
-        } else if (attempts < 10) {
+        }
+        // Not ready yet — retry
+        if (attempts < maxAttempts) {
           setTimeout(tryActivate, 500);
         } else {
-          // Session never restored — still show success, listing activates on next login
-          console.log('Session not available — listing will activate on next login');
-          localStorage.removeItem('pendingListingId');
+          console.error('Could not activate listing after payment. ID:', listingId, '— will retry on next login.');
+          // Leave pendingListingId in place so login can finish activation
         }
       };
-      setTimeout(tryActivate, 500);
+      setTimeout(tryActivate, 300);
     }
   } else if (payment === 'cancelled') {
     window.history.replaceState({}, '', window.location.pathname);
     showToast('Payment cancelled — your listing was not published.');
     showPage('post-listing');
+  }
+}
+
+// Activate a listing using a token directly (doesn't need currentUser loaded)
+async function activateListingByIdWithToken(id, token) {
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/listings?id=eq.' + id, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ status: 'active', posted_date: new Date().toISOString().split('T')[0] })
+    });
+    console.log('Activate w/ token:', res.status);
+    return res.ok;
+  } catch(e) {
+    console.error('Activation error:', e);
+    return false;
+  }
+}
+
+// Safety net: on login, activate any pending listing that was paid for
+async function activateAnyPendingAfterLogin() {
+  const pendingId = localStorage.getItem('pendingListingId');
+  if (!pendingId) return;
+  const token = localStorage.getItem('pnw_token');
+  if (!token) return;
+  const ok = await activateListingByIdWithToken(pendingId, token);
+  if (ok) {
+    console.log('Activated pending listing on login:', pendingId);
+    localStorage.removeItem('pendingListingId');
+    localStorage.removeItem('pendingListingData');
+    await loadUserListings().catch(()=>{});
+    await loadPublicListings().catch(()=>{});
   }
 }
 
@@ -3862,6 +3912,8 @@ async function restoreSession() {
         onLogin();
         console.log('Session restored for:', currentUser.firstName);
         loadUserListings().catch(e => console.log('loadUserListings error:', e));
+        // Safety net: finish activating any paid-but-pending listing
+        activateAnyPendingAfterLogin().catch(()=>{});
       } else {
         // Token expired - clear storage
         localStorage.removeItem('pnw_token');
