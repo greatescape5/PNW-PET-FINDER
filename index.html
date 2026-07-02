@@ -541,10 +541,11 @@
 
     .hiw-steps {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
     }
 
+    @media (max-width: 900px) { .hiw-steps { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 680px) { .hiw-steps { grid-template-columns: 1fr; } }
 
     .hiw-step {
@@ -1782,16 +1783,21 @@
       <div class="hiw-steps">
         <div class="hiw-step">
           <div class="hiw-num">1</div>
+          <h3>Create a Profile</h3>
+          <p>Sign up for a free account so you can post listings, edit them anytime, and manage your pets.</p>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-num">2</div>
           <h3>Fill out the Form</h3>
           <p>Share your pet's info, photos, choose your listing length and pay securely on our site.</p>
         </div>
         <div class="hiw-step">
-          <div class="hiw-num">2</div>
-          <h3>Go Live in 48 Hours or Less</h3>
+          <div class="hiw-num">3</div>
+          <h3>Go Live — Automatic</h3>
           <p>Your listing is automatically formatted and added to our website the moment payment confirms.</p>
         </div>
         <div class="hiw-step">
-          <div class="hiw-num">3</div>
+          <div class="hiw-num">4</div>
           <h3>Visitors Contact You Directly</h3>
           <p>Reach buyers across Washington, Oregon, Idaho and beyond — finding the right home for your pet.</p>
         </div>
@@ -2640,9 +2646,9 @@ async function sendContactMessage() {
 // Set success URL to: https://yoursite.com?payment=success&listing={CHECKOUT_SESSION_ID}
 // Paste the payment link URLs below
 const STRIPE_LINKS = {
-  standard: 'https://buy.stripe.com/test_3cI5kC99o6pWgn94PY63K00',  // $6.99 — 2 weeks
-  extended: 'https://buy.stripe.com/test_7sYdR8ads9C8c6T6Y663K01',  // $11.99 — 4 weeks
-  featured: 'https://buy.stripe.com/test_6oU28qclAeWsb2PgyG63K02'   // $19.99 — featured
+  standard: 'https://buy.stripe.com/3cI5kC99o6pWgn94PY63K00',  // $6.99 — 2 weeks
+  extended: 'https://buy.stripe.com/7sYdR8ads9C8c6T6Y663K01',  // $11.99 — 4 weeks
+  featured: 'https://buy.stripe.com/6oU28qclAeWsb2PgyG63K02'   // $19.99 — featured
 };
 
 const SUPABASE_URL = 'https://copawohxwjikseigcvqf.supabase.co';
@@ -3340,10 +3346,17 @@ function submitListing() {
   }
   if (!selectedPlan) { al.innerHTML = '<div class="alert alert-err">Please select a listing plan.</div>'; return; }
   if (!currentUser) {
-    al.innerHTML = '<div class="alert alert-info">Please <a class="f-link" onclick="openModal(\'loginModal\')">log in</a> or <a class="f-link" onclick="openModal(\'signupModal\')">create an account</a> first.</div>';
+    // Show the banner right by the button (bottom of the form) and scroll to it
+    const banner = document.getElementById('notLoggedInBanner');
+    if (banner) {
+      banner.style.display = 'block';
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
     return;
   }
   al.innerHTML = '';
+  const banner = document.getElementById('notLoggedInBanner');
+  if (banner) banner.style.display = 'none';
 
   pendingListing = {
     id: Date.now().toString(),
